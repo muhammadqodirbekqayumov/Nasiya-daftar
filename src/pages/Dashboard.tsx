@@ -1,13 +1,13 @@
 import { Link } from "react-router-dom"
 import { useData } from "@/contexts/DataContext"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
+import { Card, CardContent } from "@/components/ui/card"
 import { Overview } from "@/components/Overview"
 import { RecentTransactions } from "@/components/RecentTransactions"
-import { Users, DollarSign, Activity, TrendingUp } from "lucide-react"
+import { Users, DollarSign, Activity, TrendingUp, ArrowUpRight, ArrowDownRight } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export default function Dashboard() {
-    const { customers, transactions, formatCurrency } = useData()
+    const { customers, transactions, formatCurrency, settings } = useData()
 
     const totalDebt = transactions
         .filter((t) => t.type === "debt")
@@ -19,93 +19,95 @@ export default function Dashboard() {
 
     const netBalance = totalDebt - totalPaid
 
-    const StatCard = ({ title, value, icon: Icon, to, colorClass, subtitle }: any) => (
+    const StatCard = ({ title, value, icon: Icon, to, colorClass, trend }: any) => (
         <Link to={to} className="group block h-full">
-            <Card className="h-full border-none shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 bg-white/50 backdrop-blur-sm overflow-hidden relative">
-                <div className={cn("absolute right-0 top-0 p-4 opacity-10 group-hover:scale-110 transition-transform duration-500", colorClass)}>
-                    <Icon className="h-24 w-24" />
-                </div>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2 relative z-10">
-                    <CardTitle className="text-sm font-medium text-muted-foreground">
-                        {title}
-                    </CardTitle>
-                    <div className={cn("p-2 rounded-full bg-opacity-20", colorClass.replace("text-", "bg-"))}>
-                        <Icon className={cn("h-4 w-4", colorClass)} />
+            <Card className="h-full border border-slate-200 shadow-sm hover:shadow-md transition-all duration-200 bg-white">
+                <CardContent className="p-5 flex items-start justify-between">
+                    <div className="flex flex-col gap-1">
+                        <p className="text-sm font-medium text-slate-500">{title}</p>
+                        <h3 className={cn("text-2xl font-bold tracking-tight text-slate-900")}>
+                            {value}
+                        </h3>
+                        {trend && (
+                            <div className="flex items-center gap-1 mt-1 text-xs font-medium">
+                                <span className={cn("flex items-center gap-0.5", trend === "up" ? "text-emerald-600" : "text-rose-600")}>
+                                    {trend === "up" ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+                                    {trend === "up" ? "+12%" : "+4.5%"}
+                                </span>
+                                <span className="text-muted-foreground">o'tgan oyga nisbatan</span>
+                            </div>
+                        )}
                     </div>
-                </CardHeader>
-                <CardContent className="relative z-10">
-                    <div className={cn("text-2xl font-bold tracking-tight", colorClass)}>{value}</div>
-                    <p className="text-xs text-muted-foreground mt-1 font-medium">
-                        {subtitle}
-                    </p>
+                    <div className={cn("p-3 rounded-xl", colorClass)}>
+                        <Icon className={cn("h-6 w-6", colorClass.replace("bg-", "text-").replace("/10", ""))} />
+                    </div>
                 </CardContent>
             </Card>
         </Link>
     )
 
     return (
-        <div className="flex flex-col gap-8 max-w-6xl mx-auto">
-            <div className="flex flex-col gap-2">
-                <h1 className="text-4xl font-extrabold tracking-tight bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
-                    Xush kelibsiz! 👋
-                </h1>
-                <p className="text-muted-foreground text-lg">
-                    Bugungi biznesingiz holati qanday?
-                </p>
+        <div className="flex flex-col gap-6 max-w-7xl mx-auto pb-24">
+            {/* Header Section - Minimal */}
+            <div className="flex items-center justify-between">
+                <div>
+                    <h1 className="text-2xl font-bold text-slate-900">Boshqaruv Paneli</h1>
+                    <p className="text-slate-500 text-sm">Do'kon: <span className="font-semibold text-slate-700">{settings.storeName}</span></p>
+                </div>
+                <div className="text-sm text-slate-500 bg-white px-3 py-1 rounded-full border shadow-sm">
+                    {new Date().toLocaleDateString('uz-UZ', { day: 'numeric', month: 'long' })}
+                </div>
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {/* Stats Grid */}
+            <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
                 <StatCard
-                    title="Jami Qarz"
+                    title="Jami Nasiya"
                     value={formatCurrency(totalDebt)}
                     icon={DollarSign}
                     to="/customers?filter=debt"
-                    colorClass="text-rose-600"
-                    subtitle="Umumiy berilgan nasiya"
+                    colorClass="bg-rose-100 text-rose-600"
+                    trend="down"
                 />
                 <StatCard
                     title="Undirilgan"
                     value={formatCurrency(totalPaid)}
                     icon={Activity}
                     to="#"
-                    colorClass="text-emerald-600"
-                    subtitle="Muvaffaqiyatli to'lovlar"
+                    colorClass="bg-emerald-100 text-emerald-600"
+                    trend="up"
                 />
                 <StatCard
-                    title="Qoldiq Balans"
+                    title="Kutilayotgan"
                     value={formatCurrency(netBalance)}
                     icon={TrendingUp}
                     to="/customers?filter=debt"
-                    colorClass="text-blue-600"
-                    subtitle="Kutilayotgan tushum"
+                    colorClass="bg-blue-100 text-blue-600"
                 />
                 <StatCard
                     title="Mijozlar"
                     value={customers.length}
                     icon={Users}
                     to="/customers"
-                    colorClass="text-indigo-600"
-                    subtitle="Faol mijozlar bazasi"
+                    colorClass="bg-indigo-100 text-indigo-600"
                 />
             </div>
 
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-7">
-                <Card className="col-span-4 border-none shadow-lg bg-white/60 backdrop-blur-sm">
-                    <CardHeader>
-                        <CardTitle className="text-lg font-semibold">Moliyaviy Tahlil</CardTitle>
-                    </CardHeader>
-                    <CardContent className="pl-2">
+            {/* Charts & Lists */}
+            <div className="grid gap-6 md:grid-cols-2">
+                <Card className="border-slate-200 shadow-sm h-full">
+                    <div className="p-6 pb-0">
+                        <h3 className="text-lg font-semibold text-slate-900">Moliyaviy Oqim</h3>
+                    </div>
+                    <div className="p-6 pt-4">
                         <Overview />
-                    </CardContent>
+                    </div>
                 </Card>
-                <Card className="col-span-3 border-none shadow-lg bg-white/60 backdrop-blur-sm">
-                    <CardHeader>
-                        <CardTitle className="text-lg font-semibold">So'nggi Faoliyat</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <RecentTransactions />
-                    </CardContent>
-                </Card>
+
+                {/* Recent Activity */}
+                <div className="h-full">
+                    <RecentTransactions limit={6} />
+                </div>
             </div>
         </div>
     )

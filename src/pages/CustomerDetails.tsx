@@ -7,18 +7,18 @@ import { ArrowLeft, Phone, Calendar, MessageSquare } from "lucide-react"
 import { format } from "date-fns"
 
 export default function CustomerDetails() {
-    const { customerId } = useParams()
+    const { id } = useParams()
     const navigate = useNavigate()
     const { customers, transactions, getCustomerBalance, formatCurrency, settings } = useData()
 
-    const customer = customers.find((c) => c.id === customerId)
+    const customer = customers.find((c) => c.id === id)
 
     if (!customer) {
         return <div>Mijoz topilmadi</div>
     }
 
     const customerTransactions = transactions
-        .filter((t) => t.customerId === customerId)
+        .filter((t) => t.customerId === customer.id)
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
     const balance = getCustomerBalance(customer.id)
@@ -56,18 +56,26 @@ export default function CustomerDetails() {
 
             <div className="grid gap-4 md:grid-cols-3">
                 <Card className="md:col-span-2">
-                    <CardHeader className="flex flex-row items-center justify-between">
+                    <CardHeader className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
                         <CardTitle>Ma'lumotlar</CardTitle>
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2 w-full sm:w-auto">
+                            <TransactionDialog
+                                customerId={customer.id}
+                                defaultType="debt"
+                                trigger={<Button size="sm" className="flex-1 bg-rose-600 hover:bg-rose-700 text-xs sm:text-sm">Qarz Berish</Button>}
+                            />
+                            <TransactionDialog
+                                customerId={customer.id}
+                                defaultType="payment"
+                                trigger={<Button size="sm" className="flex-1 bg-emerald-600 hover:bg-emerald-700 text-xs sm:text-sm">To'lov Olish</Button>}
+                            />
                             {customer.phone && (
                                 <>
-                                    <Button size="sm" variant="outline" onClick={handleCall}>
-                                        <Phone className="h-4 w-4 mr-2" />
-                                        Qo'ng'iroq
+                                    <Button size="icon" variant="outline" onClick={handleCall}>
+                                        <Phone className="h-4 w-4" />
                                     </Button>
-                                    <Button size="sm" variant="outline" onClick={handleSms}>
-                                        <MessageSquare className="h-4 w-4 mr-2" />
-                                        SMS
+                                    <Button size="icon" variant="outline" onClick={handleSms}>
+                                        <MessageSquare className="h-4 w-4" />
                                     </Button>
                                 </>
                             )}
@@ -95,8 +103,8 @@ export default function CustomerDetails() {
                             {balance > 0 ? "+" : ""}{formatCurrency(balance)}
                         </div>
                         <div className="flex gap-2 mt-4">
-                            <TransactionDialog customerId={customer.id} type="debt" />
-                            <TransactionDialog customerId={customer.id} type="payment" />
+                            <TransactionDialog customerId={customer.id} defaultType="debt" />
+                            <TransactionDialog customerId={customer.id} defaultType="payment" />
                         </div>
                     </CardContent>
                 </Card>
