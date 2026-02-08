@@ -55,6 +55,7 @@ type DataContextType = {
     registerUser: (email: string, pass: string, name: string, storeName: string) => any
     updateUserPassword: (id: string, newPass: string) => void
     toggleUserBlock: (id: string) => void
+    updateUserLogin: (id: string, newLogin: string) => void
     allUsers: any[]
 }
 
@@ -190,6 +191,16 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         }
     }
 
+    const updateUserLogin = (id: string, newLogin: string) => {
+        setUsersList(prev => prev.map(u => u.id === id ? { ...u, email: newLogin } : u))
+        // Update current session if needed
+        if (user && user.id === id) {
+            const updated = { ...user, email: newLogin }
+            setUser(updated)
+            localStorage.setItem("nasiya_current_user", JSON.stringify(updated))
+        }
+    }
+
     // Data State - Depends on User ID
     const [customers, setCustomers] = useState<Customer[]>([])
     const [transactions, setTransactions] = useState<Transaction[]>([])
@@ -305,6 +316,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 registerUser,
                 updateUserPassword,
                 toggleUserBlock,
+                updateUserLogin,
                 allUsers: usersList
             }}
         >

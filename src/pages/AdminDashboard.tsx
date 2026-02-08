@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 export default function AdminDashboard() {
-    const { user, allUsers, registerUser, updateUserPassword, toggleUserBlock } = useData()
+    const { user, allUsers, registerUser, updateUserPassword, toggleUserBlock, updateUserLogin } = useData()
     const [isAddOpen, setIsAddOpen] = useState(false)
 
     // Form State
@@ -99,12 +99,12 @@ export default function AdminDashboard() {
                                 />
                             </div>
                             <div className="grid gap-2">
-                                <Label htmlFor="email">Login (Email)</Label>
+                                <Label htmlFor="email">Login</Label>
                                 <Input
                                     id="email"
                                     value={newUser.email}
                                     onChange={e => setNewUser({ ...newUser, email: e.target.value })}
-                                    placeholder="user@nasiya.uz"
+                                    placeholder="Login yarating..."
                                 />
                             </div>
                             <div className="grid gap-2">
@@ -201,7 +201,35 @@ export default function AdminDashboard() {
                                 </div>
 
                                 {/* Actions */}
-                                <div className="flex items-center gap-2 w-full md:w-auto mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+                                <div className="flex flex-wrap items-center gap-2 w-full md:w-auto mt-2 md:mt-0 pt-2 md:pt-0 border-t md:border-t-0 border-slate-100">
+                                    <Dialog>
+                                        <DialogTrigger asChild>
+                                            <Button size="sm" variant="outline" className="flex-1 md:flex-none whitespace-nowrap">
+                                                <User className="h-3 w-3 mr-2" />
+                                                Login
+                                            </Button>
+                                        </DialogTrigger>
+                                        <DialogContent>
+                                            <DialogHeader>
+                                                <DialogTitle>Loginni O'zgartirish</DialogTitle>
+                                                <DialogDescription>{shop.storeName} uchun yangi login</DialogDescription>
+                                            </DialogHeader>
+                                            <div className="py-4">
+                                                <Label>Yangi Login</Label>
+                                                <Input id={`login-${shop.id}`} defaultValue={shop.email} placeholder="Yangi login..." />
+                                            </div>
+                                            <DialogFooter>
+                                                <Button onClick={() => {
+                                                    const input = document.getElementById(`login-${shop.id}`) as HTMLInputElement
+                                                    if (input && input.value) {
+                                                        updateUserLogin(shop.id, input.value)
+                                                        toast.success("Login yangilandi!")
+                                                    }
+                                                }}>Saqlash</Button>
+                                            </DialogFooter>
+                                        </DialogContent>
+                                    </Dialog>
+
                                     <Dialog>
                                         <DialogTrigger asChild>
                                             <Button size="sm" variant="outline" className="flex-1 md:flex-none whitespace-nowrap">
