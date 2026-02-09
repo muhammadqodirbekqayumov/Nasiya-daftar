@@ -10,7 +10,6 @@ import TransactionsPage from "./pages/TransactionsPage"
 import Settings from "./pages/Settings"
 import Reports from "./pages/Reports"
 import Login from "./pages/Login"
-import Register from "./pages/Register"
 import AdminDashboard from "./pages/AdminDashboard"
 
 // Protect routes that require authentication
@@ -85,7 +84,6 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<Login />} />
-          <Route path="/register" element={<Register />} />
 
           <Route
             path="/"

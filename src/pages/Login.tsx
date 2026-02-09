@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useData } from "@/contexts/DataContext"
-import { useNavigate, Link } from "react-router-dom"
+import { useNavigate } from "react-router-dom"
 import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
@@ -77,12 +77,7 @@ export default function Login() {
                         </Button>
                     </form>
 
-                    <div className="mt-6 text-center text-sm">
-                        <span className="text-slate-500">Akkauntingiz yo'qmi? </span>
-                        <Link to="/register" className="font-medium text-primary hover:underline">
-                            Ro'yxatdan o'tish
-                        </Link>
-                    </div>
+
 
 
                 </CardContent>
