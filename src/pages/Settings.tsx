@@ -147,56 +147,6 @@ export default function SettingsPage() {
                 </Card>
 
                 <div className="flex flex-col gap-4 pt-6 border-t mt-6">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                        <Button variant="outline" className="w-full justify-start gap-2 h-auto py-3" onClick={() => {
-                            const data = JSON.stringify(localStorage);
-                            const blob = new Blob([data], { type: "application/json" });
-                            const url = URL.createObjectURL(blob);
-                            const a = document.createElement("a");
-                            a.href = url;
-                            a.download = `nasiya-backup-${new Date().toISOString().split('T')[0]}.json`;
-                            a.click();
-                            toast.success("Fayl yuklab olindi");
-                        }}>
-                            <span className="text-xl">📦</span>
-                            <div className="flex flex-col items-start text-left">
-                                <span className="font-medium">Nusxa olish</span>
-                                <span className="text-xs text-muted-foreground">Ma'lumotni saqlab qo'yish</span>
-                            </div>
-                        </Button>
-                        <div className="relative w-full">
-                            <Button variant="outline" className="w-full justify-start gap-2 h-auto py-3 relative cursor-pointer">
-                                <span className="text-xl">📥</span>
-                                <div className="flex flex-col items-start text-left">
-                                    <span className="font-medium">Tiklash</span>
-                                    <span className="text-xs text-muted-foreground">Fayldan yuklash</span>
-                                </div>
-                                <input
-                                    type="file"
-                                    className="absolute inset-0 opacity-0 cursor-pointer z-10"
-                                    accept=".json"
-                                    onChange={(e) => {
-                                        const file = e.target.files?.[0];
-                                        if (!file) return;
-                                        const reader = new FileReader();
-                                        reader.onload = (event) => {
-                                            try {
-                                                const data = JSON.parse(event.target?.result as string);
-                                                Object.keys(data).forEach(key => {
-                                                    localStorage.setItem(key, data[key]);
-                                                });
-                                                toast.success("Ma'lumotlar tiklandi! Sahifa yangilanmoqda...");
-                                                setTimeout(() => window.location.reload(), 1500);
-                                            } catch (err) {
-                                                toast.error("Xatolik: Fayl noto'g'ri formatda");
-                                            }
-                                        };
-                                        reader.readAsText(file);
-                                    }}
-                                />
-                            </Button>
-                        </div>
-                    </div>
                     <Button onClick={handleSave} className="w-full sm:w-auto ml-auto bg-primary hover:bg-primary/90 text-white shadow-lg shadow-primary/20">
                         Saqlash
                     </Button>

@@ -1,4 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from "react"
+import { supabase } from "@/lib/supabase"
+import { toast } from "sonner"
 
 export type Customer = {
     id: string
@@ -42,7 +44,7 @@ type DataContextType = {
     transactions: Transaction[]
     settings: Settings
     updateSettings: (newSettings: Partial<Settings>) => void
-    addCustomer: (customer: Omit<Customer, "id" | "createdAt">) => void // Kept original Omit for addCustomer as instruction's was likely a typo
+    addCustomer: (customer: Omit<Customer, "id" | "createdAt">) => void
     updateCustomer: (id: string, data: Partial<Customer>) => void
     deleteCustomer: (id: string) => void
     addTransaction: (transaction: Omit<Transaction, "id" | "date">) => void
@@ -57,226 +59,368 @@ type DataContextType = {
     toggleUserBlock: (id: string) => void
     updateUserLogin: (id: string, newLogin: string) => void
     allUsers: any[]
+    loading: boolean
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined)
 
-// Helper to generate IDs
-const generateId = () => Math.random().toString(36).substr(2, 9)
-
-// Initial Mock Users
-const INITIAL_USERS = [
-    {
-        id: "admin_id",
-        email: "admin@nasiya.uz",
-        password: "123",
-        name: "Super Admin",
-        storeName: "Bosh Ofis",
-        isAdmin: true,
-        subscriptionDate: new Date().toISOString(), // Always active
-        isBlocked: false
-    },
-    {
-        id: "demo_id",
-        email: "demo@nasiya.uz",
-        password: "123",
-        name: "Demo Do'kon",
-        storeName: "Demo Market",
-        subscriptionDate: new Date().toISOString(),
-        isBlocked: false
-    }
-]
-
 export function DataProvider({ children }: { children: React.ReactNode }) {
-    // Auth State
-    const [usersList, setUsersList] = useState<any[]>(() => {
-        const saved = localStorage.getItem("nasiya_users_db")
-        return saved ? JSON.parse(saved) : INITIAL_USERS
-    })
+    const [user, setUser] = useState<any | null>(null)
+    const [allUsers, setAllUsers] = useState<any[]>([])
+    const [loading, setLoading] = useState(true)
 
-    const [user, setUser] = useState<any | null>(() => {
-        const saved = localStorage.getItem("nasiya_current_user")
-        return saved ? JSON.parse(saved) : null
-    })
-
-    // Check Subscription Status on Load/Change
+    // Auth Initialization & State Change Listener
     useEffect(() => {
-        if (user && !user.isAdmin) {
-            const subDate = new Date(user.subscriptionDate)
-            const now = new Date()
-            const diffTime = Math.abs(now.getTime() - subDate.getTime())
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
-            if (diffDays > 30 && !user.isBlocked) {
-                // Auto-block logic
-                const updatedUser = { ...user, isBlocked: true }
-                setUser(updatedUser)
-                localStorage.setItem("nasiya_current_user", JSON.stringify(updatedUser))
-
-                // Update in usersList as well
-                setUsersList(prev => prev.map(u => u.id === user.id ? { ...u, isBlocked: true } : u))
+        // 1. Check active session immediately on mount
+        const initAuth = async () => {
+            const { data: { session } } = await supabase.auth.getSession()
+            if (session?.user) {
+                // User is logged in, fetch profile
+                await fetchUserProfile(session.user.id)
+            } else {
+                // No user, stop loading so Login page can show
+                setLoading(false)
             }
         }
-    }, [user?.id])
+        initAuth()
 
-    useEffect(() => {
-        localStorage.setItem("nasiya_users_db", JSON.stringify(usersList))
-    }, [usersList])
+        // 2. Listen for future changes
+        const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+            if (session?.user) {
+                setLoading(true)
+                await fetchUserProfile(session.user.id)
+            } else {
+                setUser(null)
+                setCustomers([])
+                setTransactions([])
+                setSettings(defaultSettings)
+                setLoading(false)
+            }
+        })
 
-    const registerUser = (email: string, pass: string, name: string, storeName: string) => {
-        const newUser = {
-            id: Math.random().toString(36).substr(2, 9),
-            email,
-            password: pass,
-            name,
-            storeName,
-            subscriptionDate: new Date().toISOString(),
-            isBlocked: false
+        return () => subscription.unsubscribe()
+    }, [])
+
+    const fetchUserProfile = async (userId: string) => {
+        try {
+            const { data, error } = await supabase
+                .from('profiles')
+                .select('*')
+                .eq('id', userId)
+                .single()
+
+            if (error && error.code !== 'PGRST116') {
+                console.error("Error fetching profile:", error)
+                setLoading(false)
+                return
+            }
+
+            if (data) {
+                const mappedUser = {
+                    id: data.id,
+                    email: data.email,
+                    name: data.full_name,
+                    storeName: data.store_name,
+                    isAdmin: data.is_admin,
+                    isBlocked: data.is_blocked,
+                    subscriptionDate: data.subscription_date,
+                    phone: data.phone
+                }
+                setUser(mappedUser)
+
+                setSettings({
+                    ...defaultSettings,
+                    currency: data.currency || "UZS",
+                    storeName: data.store_name || "",
+                    ownerName: data.full_name || "",
+                    phone: data.phone || "",
+                    smsTemplate: data.sms_template || defaultSettings.smsTemplate,
+                    isSetupCompleted: !!data.store_name
+                })
+
+                if (data.is_admin) {
+                    await fetchAllUsers()
+                }
+
+                // Initial data fetch
+                await fetchData(data.id)
+            } else {
+                // Profile missing, allow UI to handle setup or create default
+                // For now, we assume profile trigger works or we create it here if needed
+                console.warn("Profile not found for user:", userId)
+                setLoading(false)
+            }
+        } catch (e) {
+            console.error("Profile fetch error:", e)
+            setLoading(false)
         }
-        setUsersList(prev => [...prev, newUser])
-        return newUser
+        // distinct from finally, because we might mistakenly turn off loading inside fetchData steps
+    }
+
+    const fetchData = async (userId: string) => {
+        try {
+            // Fetch Customers
+            const { data: customersData, error: customersError } = await supabase
+                .from('customers')
+                .select('*')
+                .eq('user_id', userId)
+                .order('created_at', { ascending: false })
+
+            if (!customersError && customersData) {
+                setCustomers(customersData.map(c => ({
+                    id: c.id,
+                    name: c.name,
+                    phone: c.phone,
+                    note: c.note,
+                    createdAt: c.created_at
+                })))
+            }
+
+            // Fetch Transactions
+            const { data: transactionsData, error: transactionsError } = await supabase
+                .from('transactions')
+                .select('*')
+                .eq('user_id', userId)
+                .order('date', { ascending: false })
+
+            if (!transactionsError && transactionsData) {
+                setTransactions(transactionsData.map(t => ({
+                    id: t.id,
+                    customerId: t.customer_id,
+                    type: t.type,
+                    amount: t.amount,
+                    date: t.date,
+                    note: t.note,
+                    returnDate: t.return_date
+                })))
+            }
+        } catch (e) {
+            console.error("Data fetch error:", e)
+        } finally {
+            setLoading(false)
+        }
+    }
+
+    const fetchAllUsers = async () => {
+        const { data, error } = await supabase.from('profiles').select('*')
+        if (!error && data) {
+            setAllUsers(data.map(u => ({
+                id: u.id,
+                email: u.email,
+                name: u.full_name,
+                storeName: u.store_name,
+                isAdmin: u.is_admin,
+                isBlocked: u.is_blocked,
+                subscriptionDate: u.subscription_date
+            })))
+        }
     }
 
     const login = async (email: string, pass: string) => {
-        // Simulate Network Delay
-        await new Promise(resolve => setTimeout(resolve, 800))
+        const { error } = await supabase.auth.signInWithPassword({
+            email,
+            password: pass
+        })
 
-        const foundUser = usersList.find(u => u.email === email && u.password === pass)
-
-        if (foundUser) {
-            const userData = { ...foundUser }
-            // Check expiry immediately on login too
-            const subDate = new Date(userData.subscriptionDate)
-            const now = new Date()
-            const diffTime = Math.abs(now.getTime() - subDate.getTime())
-            const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-
-            if (diffDays > 30 && !userData.isAdmin) {
-                userData.isBlocked = true
-            }
-
-            // Don't store password in state/storage
-            // @ts-ignore
-            delete userData.password
-
-            setUser(userData)
-            localStorage.setItem("nasiya_current_user", JSON.stringify(userData))
-            return true
+        if (error) {
+            toast.error("Xatolik: " + (error.message || "Login yoki parol noto'g'ri"))
+            return false
         }
-        return false
+        return true
     }
 
-    const logout = () => {
+    const logout = async () => {
+        await supabase.auth.signOut()
+        setCustomers([])
+        setTransactions([])
         setUser(null)
-        localStorage.removeItem("nasiya_current_user")
     }
 
-    const updateUserPassword = (id: string, newPass: string) => {
-        setUsersList(prev => prev.map(u => u.id === id ? { ...u, password: newPass } : u))
-    }
-
-    const toggleUserBlock = (id: string) => {
-        setUsersList(prev => prev.map(u => {
-            if (u.id === id) {
-                return { ...u, isBlocked: !u.isBlocked }
+    const registerUser = async (email: string, pass: string, name: string, storeName: string) => {
+        setLoading(true)
+        const { data, error } = await supabase.auth.signUp({
+            email,
+            password: pass,
+            options: {
+                data: {
+                    full_name: name,
+                    store_name: storeName
+                }
             }
-            return u
-        }))
+        })
 
-        // Also update current user if it's the one being blocked (though unlikely to block self, good for safety)
-        if (user && user.id === id) {
-            const updated = { ...user, isBlocked: !user.isBlocked }
-            setUser(updated)
-            localStorage.setItem("nasiya_current_user", JSON.stringify(updated))
+        if (error) {
+            toast.error("Ro'yxatdan o'tishda xatolik: " + error.message)
+            setLoading(false)
+            return null
+        }
+
+        toast.success("Muvaffaqiyatli ro'yxatdan o'tdingiz!")
+        return data
+    }
+
+    const updateUserPassword = async (_id: string, _newPass: string) => {
+        toast.info("Bu funksiya tez orada qo'shiladi")
+    }
+
+    const toggleUserBlock = async (id: string) => {
+        const u = allUsers.find(u => u.id === id)
+        if (!u) return
+
+        const { error } = await supabase
+            .from('profiles')
+            .update({ is_blocked: !u.isBlocked })
+            .eq('id', id)
+
+        if (!error) {
+            setAllUsers(prev => prev.map(user => user.id === id ? { ...user, isBlocked: !user.isBlocked } : user))
+            toast.success("Holat o'zgartirildi")
         }
     }
 
-    const updateUserLogin = (id: string, newLogin: string) => {
-        setUsersList(prev => prev.map(u => u.id === id ? { ...u, email: newLogin } : u))
-        // Update current session if needed
-        if (user && user.id === id) {
-            const updated = { ...user, email: newLogin }
-            setUser(updated)
-            localStorage.setItem("nasiya_current_user", JSON.stringify(updated))
-        }
+    const updateUserLogin = async (_id: string, _newLogin: string) => {
+        toast.info("Bu funksiya tez orada qo'shiladi")
     }
 
-    // Data State - Depends on User ID
+    // Data State
     const [customers, setCustomers] = useState<Customer[]>([])
     const [transactions, setTransactions] = useState<Transaction[]>([])
     const [settings, setSettings] = useState<Settings>(defaultSettings)
 
-    // Load data when User changes
-    useEffect(() => {
-        if (user) {
-            const userKey = `nasiya_data_${user.id}`
-            const savedData = localStorage.getItem(userKey)
+    const updateSettings = async (newSettings: Partial<Settings>) => {
+        if (!user) return
 
-            if (savedData) {
-                const parsed = JSON.parse(savedData)
-                setCustomers(parsed.customers || [])
-                setTransactions(parsed.transactions || [])
-                setSettings(parsed.settings || { ...defaultSettings, storeName: user.storeName, ownerName: user.name })
-            } else {
-                // Initialize fresh data for this user
-                setCustomers([])
-                setTransactions([])
-                setSettings({ ...defaultSettings, storeName: user.storeName, ownerName: user.name })
-            }
+        const updatedSettings = { ...settings, ...newSettings }
+
+        // Map UI Settings to Supabase Profile columns
+        const profileUpdates: any = {}
+        if (newSettings.currency) profileUpdates.currency = newSettings.currency
+        if (newSettings.storeName) profileUpdates.store_name = newSettings.storeName
+        if (newSettings.ownerName) profileUpdates.full_name = newSettings.ownerName
+        if (newSettings.phone) profileUpdates.phone = newSettings.phone
+        if (newSettings.smsTemplate) profileUpdates.sms_template = newSettings.smsTemplate
+
+        const { error } = await supabase
+            .from('profiles')
+            .update(profileUpdates)
+            .eq('id', user.id)
+
+        if (!error) {
+            setSettings(updatedSettings)
+            toast.success("Sozlamalar saqlandi")
         } else {
-            setCustomers([])
-            setTransactions([])
+            toast.error("Xatolik: " + error.message)
         }
-    }, [user])
+    }
 
-    // Save data whenever it changes (only if logged in)
-    useEffect(() => {
-        if (user) {
-            const userKey = `nasiya_data_${user.id}`
-            const dataToSave = {
-                customers,
-                transactions,
-                settings
-            }
-            localStorage.setItem(userKey, JSON.stringify(dataToSave))
+    const addCustomer = async (data: Omit<Customer, "id" | "createdAt">) => {
+        if (!user) return
+
+        const { data: newCustomer, error } = await supabase
+            .from('customers')
+            .insert({
+                user_id: user.id,
+                name: data.name,
+                phone: data.phone,
+                note: data.note
+            })
+            .select()
+            .single()
+
+        if (!error && newCustomer) {
+            setCustomers(prev => [{
+                id: newCustomer.id,
+                name: newCustomer.name,
+                phone: newCustomer.phone,
+                note: newCustomer.note,
+                createdAt: newCustomer.created_at
+            }, ...prev])
+            toast.success("Mijoz qo'shildi")
+        } else {
+            toast.error("Xatolik: " + (error?.message || "Mijozni qo'shib bo'lmadi"))
         }
-    }, [user, customers, transactions, settings])
-
-    const updateSettings = (newSettings: Partial<Settings>) => {
-        setSettings((prev) => ({ ...prev, ...newSettings }))
     }
 
-    const addCustomer = (data: Omit<Customer, "id" | "createdAt">) => {
-        const newCustomer: Customer = {
-            ...data,
-            id: generateId(),
-            createdAt: new Date().toISOString(),
+    const updateCustomer = async (id: string, data: Partial<Customer>) => {
+        if (!user) return
+
+        const { error } = await supabase
+            .from('customers')
+            .update({
+                name: data.name,
+                phone: data.phone,
+                note: data.note
+            })
+            .eq('id', id)
+            .eq('user_id', user.id)
+
+        if (!error) {
+            setCustomers(prev => prev.map(c => c.id === id ? { ...c, ...data } : c))
+            toast.success("Mijoz ma'lumotlari yangilandi")
         }
-        setCustomers((prev) => [newCustomer, ...prev])
     }
 
-    const updateCustomer = (id: string, data: Partial<Customer>) => {
-        setCustomers((prev) =>
-            prev.map((c) => (c.id === id ? { ...c, ...data } : c))
-        )
-    }
+    const deleteCustomer = async (id: string) => {
+        if (!user) return
 
-    const deleteCustomer = (id: string) => {
-        setCustomers((prev) => prev.filter((c) => c.id !== id))
-        setTransactions((prev) => prev.filter((t) => t.customerId !== id))
-    }
+        const { error } = await supabase
+            .from('customers')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', user.id)
 
-    const addTransaction = (transaction: Omit<Transaction, 'id' | 'date'>) => {
-        const newTransaction: Transaction = {
-            ...transaction,
-            id: Math.random().toString(36).substr(2, 9),
-            date: new Date().toISOString(),
+        if (!error) {
+            setCustomers(prev => prev.filter(c => c.id !== id))
+            setTransactions(prev => prev.filter(t => t.customerId !== id))
+            toast.success("Mijoz o'chirildi")
         }
-        setTransactions(prev => [...prev, newTransaction])
     }
 
-    const deleteTransaction = (id: string) => {
-        setTransactions((prev) => prev.filter((t) => t.id !== id))
+    const addTransaction = async (transaction: Omit<Transaction, 'id' | 'date'>) => {
+        if (!user) return
+
+        const { data: newTransaction, error } = await supabase
+            .from('transactions')
+            .insert({
+                user_id: user.id,
+                customer_id: transaction.customerId,
+                amount: transaction.amount,
+                type: transaction.type,
+                note: transaction.note,
+                return_date: transaction.returnDate
+            })
+            .select()
+            .single()
+
+        if (!error && newTransaction) {
+            setTransactions(prev => [{
+                id: newTransaction.id,
+                customerId: newTransaction.customer_id,
+                type: newTransaction.type,
+                amount: newTransaction.amount,
+                date: newTransaction.date,
+                note: newTransaction.note,
+                returnDate: newTransaction.return_date
+            }, ...prev])
+            toast.success("Savdo saqlandi")
+        } else {
+            toast.error("Xatolik: " + (error?.message || "Amaliyot saqlanmadi"))
+        }
+    }
+
+    const deleteTransaction = async (id: string) => {
+        if (!user) return
+
+        const { error } = await supabase
+            .from('transactions')
+            .delete()
+            .eq('id', id)
+            .eq('user_id', user.id)
+
+        if (!error) {
+            setTransactions(prev => prev.filter(t => t.id !== id))
+            toast.success("Amaliyot o'chirildi")
+        }
     }
 
     const getCustomerBalance = (customerId: string) => {
@@ -317,7 +461,8 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
                 updateUserPassword,
                 toggleUserBlock,
                 updateUserLogin,
-                allUsers: usersList
+                allUsers,
+                loading
             }}
         >
             {children}

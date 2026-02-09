@@ -14,8 +14,16 @@ import AdminDashboard from "./pages/AdminDashboard"
 
 // Protect routes that require authentication
 function AuthGuard({ children }: { children: React.ReactNode }) {
-  const { user, logout } = useData()
+  const { user, loading, logout } = useData()
   const location = useLocation()
+
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    )
+  }
 
   if (!user) {
     // Redirect to login page, but save the current location they were trying to go to
