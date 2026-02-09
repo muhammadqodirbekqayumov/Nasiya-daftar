@@ -3,8 +3,8 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { useData } from "@/contexts/DataContext"
-import { useNavigate } from "react-router-dom"
-import { Loader2, Send } from "lucide-react"
+import { useNavigate, Link } from "react-router-dom"
+import { Loader2 } from "lucide-react"
 import { toast } from "sonner"
 
 export default function Login() {
@@ -77,19 +77,14 @@ export default function Login() {
                         </Button>
                     </form>
 
-                    <div className="relative my-6">
-                        <div className="absolute inset-0 flex items-center">
-                            <span className="w-full border-t border-slate-200" />
-                        </div>
-                        <div className="relative flex justify-center text-xs uppercase">
-                            <span className="bg-white px-2 text-slate-500">Yoki</span>
-                        </div>
+                    <div className="mt-6 text-center text-sm">
+                        <span className="text-slate-500">Akkauntingiz yo'qmi? </span>
+                        <Link to="/register" className="font-medium text-primary hover:underline">
+                            Ro'yxatdan o'tish
+                        </Link>
                     </div>
 
-                    <Button variant="outline" className="w-full h-11 border-sky-200 bg-sky-50 text-sky-600 hover:bg-sky-100 hover:text-sky-700">
-                        <Send className="mr-2 h-4 w-4" />
-                        Telegram orqali (tez orada)
-                    </Button>
+
                 </CardContent>
             </Card>
         </div>
