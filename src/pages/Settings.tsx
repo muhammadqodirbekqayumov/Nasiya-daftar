@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { toast } from "sonner"
-import { User } from "lucide-react"
+import { Moon, Sun, Loader2, Upload, Download } from "lucide-react"
 
 export default function SettingsPage() {
     const { settings, updateSettings, logout } = useData()
@@ -166,6 +166,76 @@ export default function SettingsPage() {
                     </Button>
                 </div>
             </div>
+
+            <Card>
+                <CardHeader>
+                    <CardTitle>Ma'lumotlar Bazasi</CardTitle>
+                    <CardDescription>Xavfsizlik uchun ma'lumotlarni saqlab qo'ying</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-2">
+                        <Button
+                            variant="outline"
+                            className="h-auto py-4 justify-start space-x-4 hover:bg-slate-50 border-slate-200"
+                            onClick={() => {
+                                const data = {
+                                    customers,
+                                    transactions,
+                                    settings,
+                                    exportDate: new Date().toISOString()
+                                }
+                                const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
+                                const url = URL.createObjectURL(blob)
+                                const a = document.createElement('a')
+                                a.href = url
+                                a.download = `nasiya_backup_${new Date().toISOString().split('T')[0]}.json`
+                                document.body.appendChild(a)
+                                a.click()
+                                document.body.removeChild(a)
+                                URL.revokeObjectURL(url)
+                            }}
+                        >
+                            <div className="p-2 bg-blue-100 text-blue-600 rounded-lg">
+                                <Download className="h-5 w-5" />
+                            </div>
+                            <div className="text-left">
+                                <div className="font-semibold text-slate-900">Nusxa olish</div>
+                                <div className="text-xs text-slate-500">Barcha ma'lumotlarni saqlash</div>
+                            </div>
+                        </Button>
+
+                        <div className="relative">
+                            <input
+                                type="file"
+                                accept=".json"
+                                className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0]
+                                    if (!file) return
+                                    const reader = new FileReader()
+                                    reader.onload = (event) => {
+                                        const content = event.target?.result as string
+                                        importData(content)
+                                    }
+                                    reader.readAsText(file)
+                                }}
+                            />
+                            <Button
+                                variant="outline"
+                                className="w-full h-auto py-4 justify-start space-x-4 hover:bg-slate-50 border-slate-200"
+                            >
+                                <div className="p-2 bg-amber-100 text-amber-600 rounded-lg">
+                                    <Upload className="h-5 w-5" />
+                                </div>
+                                <div className="text-left">
+                                    <div className="font-semibold text-slate-900">Qayta tiklash</div>
+                                    <div className="text-xs text-slate-500">Fayldan yuklash</div>
+                                </div>
+                            </Button>
+                        </div>
+                    </div>
+                </CardContent>
+            </Card>
 
             {/* Support / Contact Admin */}
             <Card className="border-sky-200 bg-sky-50">
