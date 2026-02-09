@@ -92,9 +92,12 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 const storedSettings = localStorage.getItem('settings')
 
                 if (storedUser) setUser(JSON.parse(storedUser))
-                if (storedCustomers) setCustomers(JSON.parse(storedCustomers))
-                if (storedTransactions) setTransactions(JSON.parse(storedTransactions))
-                if (storedSettings) setSettings(JSON.parse(storedSettings))
+                if (storedCustomers) setCustomers(JSON.parse(storedCustomers) || [])
+                if (storedTransactions) setTransactions(JSON.parse(storedTransactions) || [])
+                if (storedSettings) {
+                    const parsed = JSON.parse(storedSettings)
+                    setSettings(prev => ({ ...prev, ...parsed }))
+                }
             } catch (error) {
                 console.error("Failed to load data from localStorage", error)
                 toast.error("Ma'lumotlarni yuklashda xatolik!")

@@ -73,10 +73,10 @@ export default function Layout() {
             <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b bg-white/95 backdrop-blur px-4 md:hidden">
                 <div className="flex items-center gap-2">
                     <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                        {settings.storeName.charAt(0).toUpperCase()}
+                        {settings.storeName?.charAt(0).toUpperCase() || "N"}
                     </div>
                     <span className="font-bold text-lg text-slate-900">
-                        {settings.storeName}
+                        {settings.storeName || "Nasiya Daftar"}
                     </span>
                 </div>
                 <MobileMenu />
