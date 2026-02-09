@@ -32,6 +32,11 @@ export interface AppSettings {
     currency: string
     language: string
     notifications: boolean
+    ownerName?: string
+    phone?: string
+    smsTemplate?: string
+    storeName?: string
+    profileImage?: string
 }
 
 interface DataContextType {
@@ -71,7 +76,10 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         theme: 'light',
         currency: "SO'M",
         language: 'uz',
-        notifications: true
+        notifications: true,
+        ownerName: '',
+        phone: '',
+        smsTemplate: "Hurmatli {mijoz}, sizning {do'kon} do'konidan {summa} qarz qarzingiz mavjud."
     })
 
     // Initialize data from localStorage

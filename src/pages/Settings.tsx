@@ -6,10 +6,10 @@ import { Label } from "@/components/ui/label"
 import { Textarea } from "@/components/ui/textarea"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { toast } from "sonner"
-import { Moon, Sun, Loader2, Upload, Download } from "lucide-react"
+import { Moon, Sun, Loader2, Upload, Download, User } from "lucide-react"
 
 export default function SettingsPage() {
-    const { settings, updateSettings, logout } = useData()
+    const { settings, updateSettings, logout, customers, transactions, importData } = useData()
     const [formData, setFormData] = useState(settings)
 
     useEffect(() => {
