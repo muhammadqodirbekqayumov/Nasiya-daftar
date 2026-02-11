@@ -41,6 +41,8 @@ export interface AppSettings {
     phone: string
     storeName: string
     smsTemplate: string
+    profileImage?: string
+    isSetupCompleted?: boolean
 }
 
 interface DataContextType {
