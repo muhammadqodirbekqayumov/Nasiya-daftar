@@ -3,11 +3,12 @@ import { useData } from "@/contexts/DataContext"
 import { Card, CardContent } from "@/components/ui/card"
 import { Overview } from "@/components/Overview"
 import { RecentTransactions } from "@/components/RecentTransactions"
-import { Users, DollarSign, Activity, TrendingUp, ArrowUpRight, ArrowDownRight } from "lucide-react"
+import { Users, DollarSign, Activity, TrendingUp, ArrowUpRight, ArrowDownRight, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { Button } from "@/components/ui/button"
 
 export default function Dashboard() {
-    const { customers, transactions, formatCurrency, settings } = useData()
+    const { user, customers, transactions, formatCurrency, settings, fetchData } = useData()
 
     const totalDebt = transactions
         .filter((t) => t.type === "debt")
@@ -18,6 +19,14 @@ export default function Dashboard() {
         .reduce((acc, t) => acc + t.amount, 0)
 
     const netBalance = totalDebt - totalPaid
+
+    const handleRefresh = async () => {
+        try {
+            await fetchData()
+        } catch (error) {
+            // Error handled in fetchData
+        }
+    }
 
     const StatCard = ({ title, value, icon: Icon, to, colorClass, trend }: any) => (
         <Link to={to} className="group block h-full">
@@ -52,10 +61,15 @@ export default function Dashboard() {
             <div className="flex items-center justify-between">
                 <div>
                     <h1 className="text-2xl font-bold text-slate-900">Boshqaruv Paneli</h1>
-                    <p className="text-slate-500 text-sm">Do'kon: <span className="font-semibold text-slate-700">{settings.storeName}</span></p>
+                    <p className="text-slate-500 text-sm">Do'kon: <span className="font-semibold text-slate-700">{user?.storeName || settings.storeName}</span></p>
                 </div>
-                <div className="text-sm text-slate-500 bg-white px-3 py-1 rounded-full border shadow-sm">
-                    {new Date().toLocaleDateString('uz-UZ', { day: 'numeric', month: 'long' })}
+                <div className="flex items-center gap-2">
+                    <div className="text-sm text-slate-500 bg-white px-3 py-1 rounded-full border shadow-sm hidden sm:block">
+                        {new Date().toLocaleDateString('uz-UZ', { day: 'numeric', month: 'long' })}
+                    </div>
+                    <Button variant="outline" size="icon" onClick={handleRefresh} className="h-8 w-8 rounded-full bg-white shadow-sm hover:bg-slate-50" title="Yangilash">
+                        <RefreshCw className="h-4 w-4 text-slate-500" />
+                    </Button>
                 </div>
             </div>
 

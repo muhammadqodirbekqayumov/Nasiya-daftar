@@ -65,6 +65,7 @@ interface DataContextType {
     toggleUserBlock: (id: string) => void
     updateUserLogin: (id: string, email: string) => void
     formatCurrency: (amount: number) => string
+    fetchData: () => Promise<void>
 }
 
 const DataContext = createContext<DataContextType | undefined>(undefined)
@@ -601,7 +602,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             updateUserPassword,
             toggleUserBlock,
             updateUserLogin,
-            formatCurrency
+            formatCurrency,
+            fetchData
         }}>
             {children}
         </DataContext.Provider>
