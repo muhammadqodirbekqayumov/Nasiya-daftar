@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useData } from "@/contexts/DataContext"
 import { useNavigate } from "react-router-dom"
 import { Loader2 } from "lucide-react"
-import { toast } from "sonner"
+
 
 export default function Login() {
     const [email, setEmail] = useState("")
@@ -18,25 +18,22 @@ export default function Login() {
         e.preventDefault()
         setLoading(true)
 
-        // Simulation of login for now, will be real with Supabase
         try {
             const success = await login(email, password)
             if (success) {
-                toast.success("Xush kelibsiz!")
                 if (email === "admin@nasiya.uz") {
                     navigate("/admin")
                 } else {
                     navigate("/")
                 }
-            } else {
-                toast.error("Login yoki parol xato")
             }
         } catch (error) {
-            toast.error("Xatolik yuz berdi")
+            console.error(error)
         } finally {
             setLoading(false)
         }
     }
+
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">

@@ -30,7 +30,7 @@ export function MobileMenu() {
                 <SheetHeader className="text-left mb-6">
                     <SheetTitle className="flex items-center gap-3">
                         <div className="h-10 w-10 bg-primary rounded-xl flex items-center justify-center text-white font-bold text-lg">
-                            {settings.storeName.charAt(0).toUpperCase()}
+                            {settings.storeName?.charAt(0).toUpperCase()}
                         </div>
                         <div>
                             <div className="font-bold text-lg">{settings.storeName}</div>
