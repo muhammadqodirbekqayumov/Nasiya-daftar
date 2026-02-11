@@ -41,6 +41,7 @@ export interface AppSettings {
     smsTemplate?: string
     storeName?: string
     profileImage?: string
+    isSetupCompleted?: boolean
 }
 
 interface DataContextType {
@@ -91,6 +92,67 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         storeName: '',
         smsTemplate: "Hurmatli {mijoz}, sizning {do'kon} do'konidan {summa} qarz qarzingiz mavjud."
     })
+
+    // Fetch Data from Supabase
+    const fetchData = useCallback(async () => {
+        try {
+            // 1. Fetch Transactions
+            const { data: txData, error: txError } = await supabase
+                .from('transactions')
+                .select('*')
+                .order('date', { ascending: false })
+
+            if (txError) throw txError
+
+            // Map transactions to app format
+            const mappedTransactions: Transaction[] = (txData || []).map((t: any) => ({
+                id: t.id,
+                customerId: t.customer_id,
+                amount: Number(t.amount),
+                type: t.type,
+                date: t.date,
+                description: t.note || ''
+            }))
+
+            setTransactions(mappedTransactions)
+
+            // 2. Fetch Customers
+            const { data: custData, error: custError } = await supabase
+                .from('customers')
+                .select('*')
+                .order('name')
+
+            if (custError) throw custError
+
+            // Map customers and calculate totals
+            const mappedCustomers: Customer[] = (custData || []).map((c: any) => {
+                // Calculate debt based on transactions
+                const custTx = mappedTransactions.filter(t => t.customerId === c.id)
+                const debt = custTx
+                    .filter(t => t.type === 'debt')
+                    .reduce((sum, t) => sum + t.amount, 0)
+                const payment = custTx
+                    .filter(t => t.type === 'payment')
+                    .reduce((sum, t) => sum + t.amount, 0)
+
+                const lastTx = custTx.length > 0 ? custTx[0].date : c.created_at
+
+                return {
+                    id: c.id,
+                    name: c.name,
+                    phone: c.phone || '',
+                    totalDebt: debt - payment,
+                    lastTransactionDate: lastTx
+                }
+            })
+
+            setCustomers(mappedCustomers)
+
+        } catch (error) {
+            console.error("Error fetching data:", error)
+            toast.error("Ma'lumotlarni yuklashda xatolik!")
+        }
+    }, [])
 
     // Load Settings from LocalStorage (continue using LS for device settings)
     useEffect(() => {
@@ -188,66 +250,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }, [])
 
-    // Fetch Data from Supabase
-    const fetchData = useCallback(async () => {
-        try {
-            // 1. Fetch Transactions
-            const { data: txData, error: txError } = await supabase
-                .from('transactions')
-                .select('*')
-                .order('date', { ascending: false })
 
-            if (txError) throw txError
-
-            // Map transactions to app format
-            const mappedTransactions: Transaction[] = (txData || []).map((t: any) => ({
-                id: t.id,
-                customerId: t.customer_id,
-                amount: Number(t.amount),
-                type: t.type,
-                date: t.date,
-                description: t.note || ''
-            }))
-
-            setTransactions(mappedTransactions)
-
-            // 2. Fetch Customers
-            const { data: custData, error: custError } = await supabase
-                .from('customers')
-                .select('*')
-                .order('name')
-
-            if (custError) throw custError
-
-            // Map customers and calculate totals
-            const mappedCustomers: Customer[] = (custData || []).map((c: any) => {
-                // Calculate debt based on transactions
-                const custTx = mappedTransactions.filter(t => t.customerId === c.id)
-                const debt = custTx
-                    .filter(t => t.type === 'debt')
-                    .reduce((sum, t) => sum + t.amount, 0)
-                const payment = custTx
-                    .filter(t => t.type === 'payment')
-                    .reduce((sum, t) => sum + t.amount, 0)
-
-                const lastTx = custTx.length > 0 ? custTx[0].date : c.created_at
-
-                return {
-                    id: c.id,
-                    name: c.name,
-                    phone: c.phone || '',
-                    totalDebt: debt - payment,
-                    lastTransactionDate: lastTx
-                }
-            })
-
-            setCustomers(mappedCustomers)
-
-        } catch (error) {
-            console.error("Error fetching data:", error)
-            toast.error("Ma'lumotlarni yuklashda xatolik!")
-        }
-    }, [])
 
     // Realtime Subscription
     useEffect(() => {

@@ -13,7 +13,7 @@ export default function TransactionsPage() {
     const [dateFilter, setDateFilter] = useState<"all" | "today">("all")
 
     // Helper to get customer name
-    const getCustomerName = (id: string) => customers.find(c => c.id === id)?.name || "Noma'lum"
+    const getCustomerName = (id: string) => customers.find(c => String(c.id) === id)?.name || "Noma'lum"
 
     // Helper to normalize strings for search
     const normalize = (str: string) => str.toLowerCase().replace(/[\s\+\(\)\-]/g, "")
@@ -21,7 +21,7 @@ export default function TransactionsPage() {
     const filteredTransactions = transactions.filter(t => {
         const customerName = getCustomerName(t.customerId)
         const matchesSearch = normalize(customerName).includes(normalize(search)) ||
-            (t.note && normalize(t.note).includes(normalize(search)))
+            (t.description && normalize(t.description).includes(normalize(search)))
 
         const matchesType = filterType === "all" || t.type === filterType
 
@@ -105,9 +105,9 @@ export default function TransactionsPage() {
                                     <span className="text-xs text-slate-500">
                                         {new Date(transaction.date).toLocaleString('uz-UZ')}
                                     </span>
-                                    {transaction.note && (
+                                    {transaction.description && (
                                         <span className="text-xs text-slate-400 itchalic">
-                                            {transaction.note}
+                                            {transaction.description}
                                         </span>
                                     )}
                                 </div>

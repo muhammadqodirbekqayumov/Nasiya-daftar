@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
 
 export default function Customers() {
-    const { customers, getCustomerBalance, formatCurrency } = useData()
+    const { customers, formatCurrency } = useData()
     const [search, setSearch] = useState("")
     const navigate = useNavigate()
 
@@ -42,7 +42,7 @@ export default function Customers() {
             {/* Smart List */}
             <div className="grid gap-2 sm:gap-3">
                 {filteredCustomers.map((customer) => {
-                    const balance = getCustomerBalance(customer.id)
+                    const balance = customer.totalDebt
                     const isDebt = balance > 0
                     const isCredit = balance < 0
 

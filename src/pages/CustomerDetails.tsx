@@ -9,9 +9,9 @@ import { format } from "date-fns"
 export default function CustomerDetails() {
     const { id } = useParams()
     const navigate = useNavigate()
-    const { customers, transactions, getCustomerBalance, formatCurrency, settings } = useData()
+    const { customers, transactions, formatCurrency, settings } = useData()
 
-    const customer = customers.find((c) => c.id === id)
+    const customer = customers.find((c) => String(c.id) === id)
 
     if (!customer) {
         return <div>Mijoz topilmadi</div>
@@ -21,7 +21,7 @@ export default function CustomerDetails() {
         .filter((t) => t.customerId === customer.id)
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
-    const balance = getCustomerBalance(customer.id)
+    const balance = customer.totalDebt
 
     const handleCall = () => {
         if (customer.phone) {
@@ -31,9 +31,9 @@ export default function CustomerDetails() {
 
     const handleSms = () => {
         if (customer.phone) {
-            let message = settings.smsTemplate
+            let message = (settings.smsTemplate || "")
                 .replace("{mijoz}", customer.name)
-                .replace("{do'kon}", settings.storeName)
+                .replace("{do'kon}", settings.storeName || "")
                 .replace("{summa}", formatCurrency(balance))
 
             const phone = customer.phone.replace(/[^\d+]/g, "")
@@ -86,11 +86,6 @@ export default function CustomerDetails() {
                             <Phone className="h-4 w-4" />
                             <span>{customer.phone || "Telefon yo'q"}</span>
                         </div>
-                        {customer.note && (
-                            <div className="text-sm text-muted-foreground border-l-2 pl-2 border-muted">
-                                {customer.note}
-                            </div>
-                        )}
                     </CardContent>
                 </Card>
 
@@ -123,7 +118,7 @@ export default function CustomerDetails() {
                                     <Calendar className="h-3 w-3" />
                                     {format(new Date(t.date), "dd.MM.yyyy HH:mm")}
                                 </span>
-                                {t.note && <span className="text-sm mt-1">{t.note}</span>}
+                                {t.description && <span className="text-sm mt-1">{t.description}</span>}
                             </div>
                             <div className={`text-xl font-bold ${t.type === "debt" ? "text-destructive" : "text-green-600"}`}>
                                 {t.type === "debt" ? "+" : "-"}{formatCurrency(t.amount)}
