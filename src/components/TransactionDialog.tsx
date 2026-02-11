@@ -42,13 +42,17 @@ export function TransactionDialog({ customerId, trigger, defaultType = 'debt' }:
             return
         }
 
-        addTransaction({
-            customerId: selectedCustomerId,
-            amount: parseFloat(amount), // Changed Number(amount) to parseFloat(amount)
+        const description = (type === 'debt' && returnDate)
+            ? `${note || ''} (Qaytarish: ${returnDate})`.trim()
+            : note
+
+        addTransaction(
+            selectedCustomerId,
+            parseFloat(amount),
             type,
-            note,
-            returnDate: type === 'debt' ? returnDate : undefined
-        })
+            description,
+            new Date().toISOString()
+        )
 
         toast.success(type === 'debt' ? "Qarz yozildi" : "To'lov qabul qilindi")
         setOpen(false)

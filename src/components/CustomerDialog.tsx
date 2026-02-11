@@ -28,11 +28,10 @@ export function CustomerDialog({ trigger }: CustomerDialogProps) {
         e.preventDefault()
         const formData = new FormData(e.currentTarget)
         try {
-            addCustomer({
-                name: formData.get("name") as string,
-                phone: formData.get("phone") as string,
-                note: formData.get("note") as string,
-            })
+            addCustomer(
+                formData.get("name") as string,
+                formData.get("phone") as string
+            )
             setOpen(false)
             toast.success("Mijoz qo'shildi")
         } catch (error) {
