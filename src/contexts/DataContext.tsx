@@ -173,6 +173,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }, [settings, loading])
 
+    // Safety: If loading gets stuck for > 10s, force it off
+    useEffect(() => {
+        if (loading) {
+            const timer = setTimeout(() => {
+                setLoading(false)
+                toast.warning("Internet sekin ishlayapti")
+            }, 10000)
+            return () => clearTimeout(timer)
+        }
+    }, [loading])
+
     // Auth & Data Fetching
     useEffect(() => {
         const initSession = async () => {
