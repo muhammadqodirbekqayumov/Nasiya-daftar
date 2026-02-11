@@ -3,37 +3,54 @@ import { useData } from "@/contexts/DataContext"
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { Users, Store, Activity, Ban, KeyRound, Plus, Save, User } from "lucide-react"
+import { Users, Store, Activity, Ban, KeyRound, Plus, Save, User, Calendar, AlertTriangle, Edit2 } from "lucide-react"
 import { toast } from "sonner"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 export default function AdminDashboard() {
-    const { user, allUsers, registerUser, updateUserPassword, toggleUserBlock, updateUserLogin } = useData()
+    const { user, allUsers, registerUser, updateUserPassword, toggleUserBlock, updateUserLogin, updateUserSubscription } = useData()
     const [isAddOpen, setIsAddOpen] = useState(false)
+
+    // Subscription Edit State
+    const [editSubOpen, setEditSubOpen] = useState(false)
+    const [selectedUserSub, setSelectedUserSub] = useState({ id: "", date: "" })
 
     // Form State
     const [newUser, setNewUser] = useState({
         name: "",
         storeName: "",
         email: "",
-        password: ""
+        password: "",
+        subscriptionEndDate: new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().split('T')[0]
     })
 
-    const handleCreateUser = () => {
+    const handleCreateUser = async () => {
         if (!newUser.name || !newUser.email || !newUser.password) {
             toast.error("Barcha maydonlarni to'ldiring")
             return
         }
 
-        registerUser(newUser.email, newUser.password, newUser.name, newUser.storeName)
-        toast.success("Yangi do'kon qo'shildi!")
-        setIsAddOpen(false)
-        setNewUser({ name: "", storeName: "", email: "", password: "" })
+        let finalEmail = newUser.email
+        if (!finalEmail.includes('@')) {
+            finalEmail = finalEmail + '@0707.com'
+        }
+
+        const success = await registerUser(finalEmail, newUser.password, newUser.name, newUser.storeName, newUser.subscriptionEndDate)
+        if (success) {
+            setIsAddOpen(false)
+            setNewUser({
+                name: "",
+                storeName: "",
+                email: "",
+                password: "",
+                subscriptionEndDate: new Date(new Date().setDate(new Date().getDate() + 30)).toISOString().split('T')[0]
+            })
+        }
     }
 
-    if (user?.email !== "admin@nasiya.uz") {
+    if (user?.email !== "admin@0707.com") {
         return (
             <div className="flex items-center justify-center h-[50vh]">
                 <div className="text-center">
@@ -60,6 +77,32 @@ export default function AdminDashboard() {
                     </p>
                 </div>
             </div>
+
+            {/* Notifications Section */}
+            {allUsers?.some(u => !u.isAdmin && u.subscriptionEndDate && new Date(u.subscriptionEndDate) <= new Date()) && (
+                <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-start gap-4 animate-in fade-in slide-in-from-top-4">
+                    <div className="bg-rose-100 p-2 rounded-lg">
+                        <AlertTriangle className="h-6 w-6 text-rose-600" />
+                    </div>
+                    <div>
+                        <h3 className="font-bold text-rose-800 text-lg">To'lov muddati o'tgan do'konlar!</h3>
+                        <p className="text-rose-600 mb-2">Quyidagi do'konlarning obuna vaqti tugagan:</p>
+                        <ul className="list-disc list-inside text-rose-700 font-medium">
+                            {allUsers
+                                .filter(u => !u.isAdmin && u.subscriptionEndDate && new Date(u.subscriptionEndDate) <= new Date())
+                                .map(u => (
+                                    <li key={u.id}>
+                                        {u.storeName} ({u.subscriptionEndDate}) - <span className="underline cursor-pointer" onClick={() => {
+                                            setSelectedUserSub({ id: u.id || "", date: u.subscriptionEndDate || "" })
+                                            setEditSubOpen(true)
+                                        }}>Uzaytirish</span>
+                                    </li>
+                                ))
+                            }
+                        </ul>
+                    </div>
+                </div>
+            )}
 
             <div className="flex items-center justify-between">
                 <div>
@@ -114,6 +157,15 @@ export default function AdminDashboard() {
                                     value={newUser.password}
                                     onChange={e => setNewUser({ ...newUser, password: e.target.value })}
                                     placeholder="******"
+                                />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="subDate">Obuna Tugash Sanasi</Label>
+                                <Input
+                                    id="subDate"
+                                    type="date"
+                                    value={newUser.subscriptionEndDate}
+                                    onChange={e => setNewUser({ ...newUser, subscriptionEndDate: e.target.value })}
                                 />
                             </div>
                         </div>
@@ -197,6 +249,29 @@ export default function AdminDashboard() {
                                                 <span className="text-xs ml-1 whitespace-nowrap text-slate-400">(Parol: {shop.password})</span>
                                             </div>
                                         </div>
+                                        <div className="flex items-center gap-2 mt-1">
+                                            <Calendar className="h-3 w-3 shrink-0 text-slate-400" />
+                                            <span className={`text-xs font-bold px-1.5 py-0.5 rounded flex items-center gap-1 ${shop.subscriptionEndDate && new Date(shop.subscriptionEndDate) <= new Date()
+                                                ? "bg-rose-100 text-rose-600 border border-rose-200"
+                                                : shop.subscriptionEndDate && new Date(shop.subscriptionEndDate) <= new Date(new Date().setDate(new Date().getDate() + 3))
+                                                    ? "bg-amber-100 text-amber-600 border border-amber-200"
+                                                    : "bg-slate-100 text-slate-600 border border-slate-200"
+                                                }`}>
+                                                {shop.subscriptionEndDate && new Date(shop.subscriptionEndDate) <= new Date() && <AlertTriangle className="h-3 w-3" />}
+                                                Obuna: {shop.subscriptionEndDate || "Belgilanmagan"}
+                                            </span>
+                                            <Button
+                                                variant="ghost"
+                                                size="icon"
+                                                className="h-6 w-6 hover:bg-slate-100 rounded-full"
+                                                onClick={() => {
+                                                    setSelectedUserSub({ id: shop.id, date: shop.subscriptionEndDate || "" })
+                                                    setEditSubOpen(true)
+                                                }}
+                                            >
+                                                <Edit2 className="h-3 w-3 text-slate-500" />
+                                            </Button>
+                                        </div>
                                     </div>
                                 </div>
 
@@ -276,6 +351,31 @@ export default function AdminDashboard() {
                     </div>
                 </CardContent>
             </Card>
+
+            <Dialog open={editSubOpen} onOpenChange={setEditSubOpen}>
+                <DialogContent>
+                    <DialogHeader>
+                        <DialogTitle>Obuna Vaqtini O'zgartirish</DialogTitle>
+                        <DialogDescription>Yangi tugash sanasini belgilang</DialogDescription>
+                    </DialogHeader>
+                    <div className="py-4">
+                        <Label>Yangi Sana</Label>
+                        <Input
+                            type="date"
+                            value={selectedUserSub.date}
+                            onChange={(e) => setSelectedUserSub({ ...selectedUserSub, date: e.target.value })}
+                        />
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={() => {
+                            if (selectedUserSub.date) {
+                                updateUserSubscription(selectedUserSub.id, selectedUserSub.date)
+                                setEditSubOpen(false)
+                            }
+                        }}>Saqlash</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
         </div>
     )
 }
