@@ -22,7 +22,7 @@ export default function SettingsPage() {
     }
 
     const handleSave = () => {
-        updateSettings(settings)
+        updateSettings(formData)
         toast.success("Sozlamalar saqlandi!")
     }
 

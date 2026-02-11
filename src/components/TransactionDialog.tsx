@@ -29,10 +29,10 @@ export function TransactionDialog({ customerId, trigger, defaultType = 'debt' }:
     const [returnDate, setReturnDate] = useState("")
     const [selectedCustomerId, setSelectedCustomerId] = useState(customerId || "")
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault()
 
-        if (!amount || isNaN(parseFloat(amount))) { // Changed Number(amount) to parseFloat(amount)
+        if (!amount || isNaN(parseFloat(amount))) {
             toast.error("Summani to'g'ri kiriting")
             return
         }
@@ -42,16 +42,13 @@ export function TransactionDialog({ customerId, trigger, defaultType = 'debt' }:
             return
         }
 
-        const description = (type === 'debt' && returnDate)
-            ? `${note || ''} (Qaytarish: ${returnDate})`.trim()
-            : note
-
-        addTransaction(
+        await addTransaction(
             selectedCustomerId,
             parseFloat(amount),
             type,
-            description,
-            new Date().toISOString()
+            note,
+            new Date().toISOString(),
+            (type === 'debt' && returnDate) ? returnDate : undefined
         )
 
         toast.success(type === 'debt' ? "Qarz yozildi" : "To'lov qabul qilindi")

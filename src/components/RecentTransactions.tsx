@@ -6,7 +6,7 @@ import { format } from "date-fns"
 export function RecentTransactions({ limit }: { limit?: number }) {
     const { transactions, customers, formatCurrency } = useData()
 
-    const sortedTransactions = transactions
+    const sortedTransactions = [...transactions]
         .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
 
     const displayTransactions = limit ? sortedTransactions.slice(0, limit) : sortedTransactions

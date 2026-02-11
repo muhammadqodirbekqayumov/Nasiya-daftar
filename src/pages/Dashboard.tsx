@@ -1,3 +1,4 @@
+import { useState } from "react"
 import { Link } from "react-router-dom"
 import { useData } from "@/contexts/DataContext"
 import { Card, CardContent } from "@/components/ui/card"
@@ -9,6 +10,7 @@ import { Button } from "@/components/ui/button"
 
 export default function Dashboard() {
     const { user, customers, transactions, formatCurrency, settings, fetchData } = useData()
+    const [isRefreshing, setIsRefreshing] = useState(false)
 
     const totalDebt = transactions
         .filter((t) => t.type === "debt")
@@ -21,6 +23,7 @@ export default function Dashboard() {
     const netBalance = totalDebt - totalPaid
 
     const handleRefresh = async () => {
+        setIsRefreshing(true)
         try {
             await fetchData()
         } catch (error) {
@@ -67,8 +70,8 @@ export default function Dashboard() {
                     <div className="text-sm text-slate-500 bg-white px-3 py-1 rounded-full border shadow-sm hidden sm:block">
                         {new Date().toLocaleDateString('uz-UZ', { day: 'numeric', month: 'long' })}
                     </div>
-                    <Button variant="outline" size="icon" onClick={handleRefresh} className="h-8 w-8 rounded-full bg-white shadow-sm hover:bg-slate-50" title="Yangilash">
-                        <RefreshCw className="h-4 w-4 text-slate-500" />
+                    <Button variant="outline" size="icon" onClick={handleRefresh} disabled={isRefreshing} className="h-8 w-8 rounded-full bg-white shadow-sm hover:bg-slate-50" title="Yangilash">
+                        <RefreshCw className={cn("h-4 w-4 text-slate-500", isRefreshing && "animate-spin")} />
                     </Button>
                 </div>
             </div>

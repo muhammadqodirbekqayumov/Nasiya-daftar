@@ -4,6 +4,7 @@ import { cn } from "@/lib/utils"
 import { useData } from "@/contexts/DataContext"
 import { CustomerDialog } from "@/components/CustomerDialog"
 import { MobileMenu } from "@/components/MobileMenu"
+import { NotificationDialog } from "@/components/NotificationDialog"
 
 export default function Layout() {
     const location = useLocation()
@@ -72,14 +73,21 @@ export default function Layout() {
             {/* Mobile Header - Simple & Clean */}
             <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b bg-white/95 backdrop-blur px-4 md:hidden">
                 <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                        {settings.storeName?.charAt(0).toUpperCase() || "N"}
-                    </div>
+                    {settings.profileImage ? (
+                        <img src={settings.profileImage} alt="Logo" className="h-8 w-8 rounded-lg object-cover" />
+                    ) : (
+                        <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-sm">
+                            {settings.storeName?.charAt(0).toUpperCase() || "N"}
+                        </div>
+                    )}
                     <span className="font-bold text-lg text-slate-900">
                         {settings.storeName || "Nasiya Daftar"}
                     </span>
                 </div>
-                <MobileMenu />
+                <div className="flex items-center gap-1">
+                    <NotificationDialog />
+                    <MobileMenu />
+                </div>
             </header>
 
             {/* Main Content */}

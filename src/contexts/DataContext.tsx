@@ -11,6 +11,7 @@ export interface Transaction {
     type: 'debt' | 'payment'
     date: string
     description: string
+    dueDate?: string
 }
 
 export interface Customer {
@@ -55,7 +56,7 @@ interface DataContextType {
     addCustomer: (name: string, phone: string) => Promise<void>
     updateCustomer: (id: string, name: string, phone: string) => Promise<void>
     deleteCustomer: (id: string) => Promise<void>
-    addTransaction: (customerId: string, amount: number, type: 'debt' | 'payment', description: string, date: string) => Promise<void>
+    addTransaction: (customerId: string, amount: number, type: 'debt' | 'payment', description: string, date: string, dueDate?: string) => Promise<void>
     deleteTransaction: (id: string) => Promise<void>
     settings: AppSettings
     updateSettings: (newSettings: Partial<AppSettings>) => void
@@ -106,14 +107,23 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             if (txError) throw txError
 
             // Map transactions to app format
-            const mappedTransactions: Transaction[] = (txData || []).map((t: any) => ({
-                id: t.id,
-                customerId: t.customer_id,
-                amount: Number(t.amount),
-                type: t.type,
-                date: t.date,
-                description: t.note || ''
-            }))
+            const mappedTransactions: Transaction[] = (txData || []).map((t: any) => {
+                const note = t.note || ''
+                // Extract " | Muddat: 2026-02-20" from description
+                const dueMatch = note.match(/\| Muddat: ([\d-]+)/)
+                const dueDate = dueMatch ? dueMatch[1] : undefined
+                const cleanDesc = note.replace(/\| Muddat: [\d-]+/, '').trim()
+
+                return {
+                    id: t.id,
+                    customerId: t.customer_id,
+                    amount: Number(t.amount),
+                    type: t.type,
+                    date: t.date,
+                    description: cleanDesc,
+                    dueDate: dueDate
+                }
+            })
 
             setTransactions(mappedTransactions)
 
@@ -173,6 +183,33 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             localStorage.setItem('settings', JSON.stringify(settings))
         }
     }, [settings, loading])
+
+    // DATA CACHING (Offline Mode)
+    // 1. Load cached data on startup
+    useEffect(() => {
+        try {
+            const savedTx = localStorage.getItem('transactions')
+            if (savedTx) setTransactions(JSON.parse(savedTx))
+
+            const savedCust = localStorage.getItem('customers')
+            if (savedCust) setCustomers(JSON.parse(savedCust))
+        } catch (e) {
+            console.error("Cache loading error", e)
+        }
+    }, [])
+
+    // 2. Save data to cache on change
+    useEffect(() => {
+        if (transactions.length > 0) {
+            localStorage.setItem('transactions', JSON.stringify(transactions))
+        }
+    }, [transactions])
+
+    useEffect(() => {
+        if (customers.length > 0) {
+            localStorage.setItem('customers', JSON.stringify(customers))
+        }
+    }, [customers])
 
     // Safety: If loading gets stuck for > 10s, force it off
     useEffect(() => {
@@ -374,17 +411,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }
 
-    const addTransaction = async (customerId: string, amount: number, type: 'debt' | 'payment', description: string, date: string) => {
+    const addTransaction = async (customerId: string, amount: number, type: 'debt' | 'payment', description: string, date: string, dueDate?: string) => {
         try {
+            // If due date provided, append it to description (hidden metadata)
+            let finalNote = description
+            if (dueDate) {
+                finalNote = `${description} | Muddat: ${dueDate}`
+            }
+
             const { data, error } = await supabase
                 .from('transactions')
                 .insert([
                     {
                         customer_id: customerId,
-                        amount,
-                        type,
-                        note: description,
-                        date,
+                        amount: amount,
+                        type: type,
+                        created_at: new Date().toISOString(),
+                        date: date, // Use supplied date
+                        note: finalNote,
                         user_id: user?.id
                     }
                 ])
