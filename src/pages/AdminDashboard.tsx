@@ -50,6 +50,18 @@ export default function AdminDashboard() {
         }
     }
 
+    // Dismissed Notifications Tracking
+    const [dismissedNotifs, setDismissedNotifs] = useState<string[]>(() => {
+        const saved = localStorage.getItem('dismissed_notifs')
+        return saved ? JSON.parse(saved) : []
+    })
+
+    const dismissNotif = (id: string) => {
+        const newList = [...dismissedNotifs, id]
+        setDismissedNotifs(newList)
+        localStorage.setItem('dismissed_notifs', JSON.stringify(newList))
+    }
+
     if (user?.email !== "admin@0707.com") {
         return (
             <div className="flex items-center justify-center h-[50vh]">
@@ -61,6 +73,13 @@ export default function AdminDashboard() {
             </div>
         )
     }
+
+    const overdueShops = allUsers?.filter(u =>
+        !u.isAdmin &&
+        u.subscriptionEndDate &&
+        new Date(u.subscriptionEndDate) <= new Date() &&
+        !dismissedNotifs.includes(u.id)
+    )
 
     return (
         <div className="flex flex-col gap-6 max-w-6xl mx-auto pb-24 px-4 md:px-0">
@@ -79,26 +98,25 @@ export default function AdminDashboard() {
             </div>
 
             {/* Notifications Section */}
-            {allUsers?.some(u => !u.isAdmin && u.subscriptionEndDate && new Date(u.subscriptionEndDate) <= new Date()) && (
+            {overdueShops && overdueShops.length > 0 && (
                 <div className="bg-rose-50 border border-rose-200 rounded-xl p-4 flex items-start gap-4 animate-in fade-in slide-in-from-top-4">
                     <div className="bg-rose-100 p-2 rounded-lg">
                         <AlertTriangle className="h-6 w-6 text-rose-600" />
                     </div>
-                    <div>
+                    <div className="flex-1">
                         <h3 className="font-bold text-rose-800 text-lg">To'lov muddati o'tgan do'konlar!</h3>
                         <p className="text-rose-600 mb-2">Quyidagi do'konlarning obuna vaqti tugagan:</p>
                         <ul className="list-disc list-inside text-rose-700 font-medium">
-                            {allUsers
-                                .filter(u => !u.isAdmin && u.subscriptionEndDate && new Date(u.subscriptionEndDate) <= new Date())
-                                .map(u => (
-                                    <li key={u.id}>
-                                        {u.storeName} ({u.subscriptionEndDate}) - <span className="underline cursor-pointer" onClick={() => {
-                                            setSelectedUserSub({ id: u.id || "", date: u.subscriptionEndDate || "" })
-                                            setEditSubOpen(true)
-                                        }}>Uzaytirish</span>
-                                    </li>
-                                ))
-                            }
+                            {overdueShops.map(u => (
+                                <li key={u.id} className="flex items-center gap-2 mb-1">
+                                    <span>{u.storeName} ({u.subscriptionEndDate})</span>
+                                    <span className="text-xs bg-rose-200 px-1.5 py-0.5 rounded cursor-pointer hover:bg-rose-300" onClick={() => dismissNotif(u.id)}>O'qildi</span>
+                                    <span className="text-xs text-rose-800 underline ml-1 cursor-pointer" onClick={() => {
+                                        setSelectedUserSub({ id: u.id || "", date: u.subscriptionEndDate || "" })
+                                        setEditSubOpen(true)
+                                    }}>Uzaytirish</span>
+                                </li>
+                            ))}
                         </ul>
                     </div>
                 </div>

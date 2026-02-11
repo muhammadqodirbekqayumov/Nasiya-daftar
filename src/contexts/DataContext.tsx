@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react'
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { toast } from 'sonner'
@@ -85,6 +85,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const [customers, setCustomers] = useState<Customer[]>([])
     const [transactions, setTransactions] = useState<Transaction[]>([])
     const [loading, setLoading] = useState(true)
+    const [allUsers, setAllUsers] = useState<User[]>([])
+    const userIdRef = useRef<string | null>(null)
+    const initDoneRef = useRef(false)
     const [settings, setSettings] = useState<AppSettings>({
         theme: 'light',
         currency: "SO'M",
@@ -105,205 +108,191 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }).format(amount)
     }, [settings.currency])
 
-    const fetchData = useCallback(async () => {
+    // ==================== FETCH DATA ====================
+    const fetchData = useCallback(async (uid?: string) => {
+        const activeId = uid || userIdRef.current
+        if (!activeId) return
+
         try {
-            const { data: txData, error: txError } = await supabase
-                .from('transactions')
-                .select('*')
-                .order('date', { ascending: false })
+            const [txResult, custResult] = await Promise.all([
+                supabase.from('transactions').select('*').eq('user_id', activeId).order('date', { ascending: false }),
+                supabase.from('customers').select('*').eq('user_id', activeId).order('name')
+            ])
 
-            if (txError) throw txError
+            if (txResult.error) { console.error("TX Error:", txResult.error); return }
+            if (custResult.error) { console.error("Cust Error:", custResult.error); return }
 
-            const mappedTransactions: Transaction[] = (txData || []).map((t: any) => {
+            const txData = txResult.data || []
+            const custData = custResult.data || []
+
+            const mappedTransactions: Transaction[] = txData.map((t: any) => {
                 const note = t.description || t.note || ''
                 const dueMatch = note.match(/\| Muddat: ([\d-]+)/)
                 const dueDate = dueMatch ? dueMatch[1] : undefined
                 const cleanDesc = note.replace(/\| Muddat: [\d-]+/, '').trim()
-
                 return {
-                    id: t.id,
-                    customerId: t.customer_id,
-                    amount: Number(t.amount),
-                    type: t.type,
-                    date: t.date,
-                    description: cleanDesc,
-                    dueDate: dueDate
+                    id: t.id, customerId: t.customer_id, amount: Number(t.amount),
+                    type: t.type, date: t.date, description: cleanDesc, dueDate
                 }
+            })
+
+            const balanceMap = new Map<string, { debt: number; lastDate: string }>()
+            mappedTransactions.forEach(t => {
+                const cur = balanceMap.get(t.customerId) || { debt: 0, lastDate: t.date }
+                balanceMap.set(t.customerId, {
+                    debt: cur.debt + (t.type === 'debt' ? t.amount : -t.amount),
+                    lastDate: cur.lastDate || t.date
+                })
+            })
+
+            const mappedCustomers: Customer[] = custData.map((c: any) => {
+                const stats = balanceMap.get(c.id) || { debt: 0, lastDate: '' }
+                return { id: c.id, name: c.name, phone: c.phone || '', totalDebt: stats.debt, lastTransactionDate: stats.lastDate }
             })
 
             setTransactions(mappedTransactions)
-
-            const { data: custData, error: custError } = await supabase
-                .from('customers')
-                .select('*')
-                .order('name')
-
-            if (custError) throw custError
-
-            const mappedCustomers: Customer[] = (custData || []).map((c: any) => {
-                const custTx = mappedTransactions.filter(t => t.customerId === c.id)
-                const debt = custTx.filter(t => t.type === 'debt').reduce((sum, t) => sum + t.amount, 0)
-                const payment = custTx.filter(t => t.type === 'payment').reduce((sum, t) => sum + t.amount, 0)
-
-                return {
-                    id: c.id,
-                    name: c.name,
-                    phone: c.phone || '',
-                    totalDebt: debt - payment,
-                    lastTransactionDate: custTx.length > 0 ? custTx[0].date : ''
-                }
-            })
-
             setCustomers(mappedCustomers)
         } catch (error: any) {
             console.error("Fetch Data Error:", error)
-            toast.error("Ma'lumotlarni yuklashda xatolik: " + error.message)
         }
     }, [])
 
+    // ==================== SETTINGS ====================
     const updateSettings = (newSettings: Partial<AppSettings>) => {
         setSettings(prev => ({ ...prev, ...newSettings }))
     }
 
     useEffect(() => {
-        const saved = localStorage.getItem('settings')
-        if (saved) {
-            try {
-                const parsed = JSON.parse(saved)
-                if (parsed && typeof parsed === 'object') {
-                    setSettings(prev => ({ ...prev, ...parsed }))
-                }
-            } catch (e) {
-                console.error("Settings parse error", e)
-            }
-        }
-    }, [])
-
-    useEffect(() => {
-        if (!loading) {
-            localStorage.setItem('settings', JSON.stringify(settings))
-        }
-    }, [settings, loading])
-
-    useEffect(() => {
         try {
-            const savedTx = localStorage.getItem('transactions')
-            if (savedTx) {
-                const parsed = JSON.parse(savedTx)
-                if (Array.isArray(parsed)) setTransactions(parsed)
-            }
-            const savedCust = localStorage.getItem('customers')
-            if (savedCust) {
-                const parsed = JSON.parse(savedCust)
-                if (Array.isArray(parsed)) setCustomers(parsed)
-            }
-        } catch (e) {
-            console.error("Cache loading error", e)
-        }
+            const saved = localStorage.getItem('settings')
+            if (saved) setSettings(JSON.parse(saved))
+        } catch (e) { console.error("Settings parse error", e) }
     }, [])
 
     useEffect(() => {
-        if (transactions.length > 0) localStorage.setItem('transactions', JSON.stringify(transactions))
-    }, [transactions])
+        localStorage.setItem('settings', JSON.stringify(settings))
+    }, [settings])
 
-    useEffect(() => {
-        if (customers.length > 0) localStorage.setItem('customers', JSON.stringify(customers))
-    }, [customers])
+    // ==================== HELPER: Build User from Session ====================
+    const buildUserFromSession = async (sessionUser: any): Promise<User> => {
+        const { data: profile } = await supabase
+            .from('user_profiles')
+            .select('is_blocked, name, store_name')
+            .eq('id', sessionUser.id)
+            .maybeSingle()
 
-    useEffect(() => {
-        if (loading) {
-            const timer = setTimeout(() => setLoading(false), 10000)
-            return () => clearTimeout(timer)
+        return {
+            id: sessionUser.id,
+            email: sessionUser.email || "",
+            name: profile?.name || sessionUser.user_metadata?.name || "Foydalanuvchi",
+            storeName: profile?.store_name || sessionUser.user_metadata?.store_name || "Do'kon",
+            isAdmin: sessionUser.email === "admin@0707.com",
+            isBlocked: profile?.is_blocked || false
         }
-    }, [loading])
+    }
 
+    // ==================== AUTH INIT ====================
     useEffect(() => {
-        const initSession = async () => {
+        let isMounted = true
+
+        const init = async () => {
             try {
-                setLoading(true)
-                const { data, error } = await supabase.auth.getSession()
-                if (error) throw error
-                if (data.session?.user) {
-                    const { data: profile } = await supabase.from('user_profiles').select('is_blocked').eq('id', data.session.user.id).maybeSingle()
-                    const userData: User = {
-                        id: data.session.user.id,
-                        email: data.session.user.email || "",
-                        name: data.session.user.user_metadata?.name || "Foydalanuvchi",
-                        storeName: data.session.user.user_metadata?.store_name || "Do'kon",
-                        isAdmin: data.session.user.email === "admin@0707.com",
-                        isBlocked: profile?.is_blocked || false
-                    }
+                const { data: { session } } = await supabase.auth.getSession()
+                if (session?.user && isMounted) {
+                    const userData = await buildUserFromSession(session.user)
+                    userIdRef.current = session.user.id
                     setUser(userData)
-                    await fetchData()
+                    fetchData(session.user.id)
+                    initDoneRef.current = true
                 }
-            } catch (error) {
-                console.error("Auth init error:", error)
+            } catch (err) {
+                console.error("Init Error", err)
             } finally {
-                setLoading(false)
+                if (isMounted) setLoading(false)
             }
         }
-        initSession()
 
-        const { data: authListener } = supabase.auth.onAuthStateChange(async (_event: any, session: any) => {
-            if (session?.user) {
-                const { data: profile } = await supabase.from('user_profiles').select('is_blocked').eq('id', session.user.id).maybeSingle()
-                const userData: User = {
-                    id: session.user.id,
-                    email: session.user.email || "",
-                    name: session.user.user_metadata?.name || "Foydalanuvchi",
-                    storeName: session.user.user_metadata?.store_name || "Do'kon",
-                    isAdmin: session.user.email === "admin@0707.com",
-                    isBlocked: profile?.is_blocked || false
-                }
+        init()
+
+        const { data: authListener } = supabase.auth.onAuthStateChange(async (event, session) => {
+            if (!isMounted) return
+
+            if (event === 'SIGNED_IN' && session?.user) {
+                // Skip if init() already handled this
+                if (initDoneRef.current && userIdRef.current === session.user.id) return
+
+                const userData = await buildUserFromSession(session.user)
+                userIdRef.current = session.user.id
                 setUser(userData)
-                await fetchData()
-            } else {
+                setLoading(false)
+                fetchData(session.user.id)
+            } else if (event === 'SIGNED_OUT') {
+                userIdRef.current = null
                 setUser(null)
                 setCustomers([])
                 setTransactions([])
+                setAllUsers([])
             }
         })
-        return () => authListener.subscription.unsubscribe()
+
+        return () => {
+            isMounted = false
+            authListener.subscription.unsubscribe()
+        }
     }, [fetchData])
 
+    // ==================== LOGIN / LOGOUT ====================
     const login = async (email: string, password: string) => {
-        setLoading(true)
-        const { error } = await supabase.auth.signInWithPassword({ email, password })
-        if (error) {
-            toast.error("Login yoki parol xato: " + error.message)
+        try {
+            setLoading(true)
+            initDoneRef.current = false
+            const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+            if (error) {
+                toast.error("Login yoki parol xato: " + error.message)
+                setLoading(false)
+                return false
+            }
+            // Set user immediately from login response
+            if (data.user) {
+                const userData = await buildUserFromSession(data.user)
+                userIdRef.current = data.user.id
+                setUser(userData)
+                initDoneRef.current = true
+                // Non-blocking fetch
+                fetchData(data.user.id)
+            }
+            toast.success("Xush kelibsiz!")
+            setLoading(false)
+            return true
+        } catch (e: any) {
+            toast.error(e.message)
             setLoading(false)
             return false
         }
-        toast.success("Xush kelibsiz!")
-        await fetchData().catch(() => toast.warning("Internet sekin. Offline rejimda ishlashingiz mumkin."))
-        setLoading(false)
-        return true
     }
 
     const logout = async () => {
         await supabase.auth.signOut()
+        userIdRef.current = null
+        initDoneRef.current = false
         setUser(null)
         setCustomers([])
         setTransactions([])
+        setAllUsers([])
         toast.info("Tizimdan chiqildi")
     }
 
+    // ==================== CUSTOMER CRUD ====================
     const addCustomer = async (name: string, phone: string) => {
         try {
-            if (!user?.id) {
-                toast.error("Siz tizimga kirmagansiz!")
-                return
-            }
-            const { data, error } = await supabase.from('customers').insert([{ name, phone, user_id: user.id }]).select().single()
-            if (error) {
-                console.error("Add Customer DB Error:", error)
-                throw error
-            }
-            const newCustomer: Customer = { id: data.id, name: data.name, phone: data.phone || '', totalDebt: 0, lastTransactionDate: new Date().toISOString() }
-            setCustomers(prev => [newCustomer, ...prev])
+            const uid = userIdRef.current
+            if (!uid) { toast.error("Siz tizimga kirmagansiz!"); return }
+            const { data, error } = await supabase.from('customers').insert([{ name, phone, user_id: uid }]).select().single()
+            if (error) throw error
+            setCustomers(prev => [{ id: data.id, name: data.name, phone: data.phone || '', totalDebt: 0, lastTransactionDate: new Date().toISOString() }, ...prev])
             toast.success("Mijoz qo'shildi")
         } catch (error: any) {
-            console.error("Add Customer Exception:", error)
+            console.error("Add Customer Error:", error)
             toast.error("Mijoz qo'shishda xatolik: " + error.message)
         }
     }
@@ -331,37 +320,40 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }
 
+    // ==================== TRANSACTION CRUD ====================
     const addTransaction = async (customerId: string, amount: number, type: 'debt' | 'payment', description: string, date: string, dueDate?: string) => {
         try {
+            const uid = userIdRef.current
+            if (!uid) { toast.error("Siz tizimga kirmagansiz!"); return }
+
             let finalNote = description
             if (dueDate) finalNote = `${description} | Muddat: ${dueDate}`
 
             const { data, error } = await supabase
                 .from('transactions')
-                .insert([{ customer_id: customerId, amount, type, created_at: new Date().toISOString(), date, description: finalNote, note: finalNote, user_id: user?.id }])
+                .insert([{ customer_id: customerId, amount, type, date, description: finalNote, note: finalNote, user_id: uid }])
                 .select()
                 .maybeSingle()
 
-            if (error) {
-                console.error("Add Transaction DB Error:", error)
-                throw error
+            if (error) throw error
+            if (!data) throw new Error("Ma'lumot saqlanmadi")
+
+            const newTx: Transaction = {
+                id: data.id, customerId: data.customer_id, amount: Number(data.amount),
+                type: data.type as 'debt' | 'payment', date: data.date,
+                description: data.description || data.note || ''
             }
-
-            if (!data) throw new Error("Ma'lumot saqlanmadi (RLS bo'lishi mumkin)")
-
-            const newTransaction: Transaction = { id: data.id, customerId: data.customer_id, amount: Number(data.amount), type: data.type as 'debt' | 'payment', date: data.date, description: data.description || data.note || '' }
-            setTransactions(prev => [newTransaction, ...prev])
+            setTransactions(prev => [newTx, ...prev])
             setCustomers(prev => prev.map(c => {
                 if (c.id === customerId) {
-                    const change = type === 'debt' ? amount : -amount
-                    return { ...c, totalDebt: c.totalDebt + change, lastTransactionDate: date }
+                    return { ...c, totalDebt: c.totalDebt + (type === 'debt' ? amount : -amount), lastTransactionDate: date }
                 }
                 return c
             }))
             toast.success("Amaliyot bajarildi")
         } catch (error: any) {
-            console.error("Transaction Exception:", error)
-            toast.error(`Xatolik: ${error.message}. Iltimos, SQL kodni bazada yuklaganingizni tekshiring.`)
+            console.error("Transaction Error:", error)
+            toast.error("Xatolik: " + error.message)
         }
     }
 
@@ -374,8 +366,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setTransactions(prev => prev.filter(tx => tx.id !== id))
             setCustomers(prev => prev.map(c => {
                 if (c.id === t.customerId) {
-                    const change = t.type === 'debt' ? -t.amount : t.amount
-                    return { ...c, totalDebt: c.totalDebt + change }
+                    return { ...c, totalDebt: c.totalDebt + (t.type === 'debt' ? -t.amount : t.amount) }
                 }
                 return c
             }))
@@ -385,53 +376,106 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
     }
 
-    const [allUsers, setAllUsers] = useState<User[]>([])
-
+    // ==================== ADMIN: FETCH ALL USERS ====================
     const fetchAllUsers = useCallback(async () => {
         try {
-            const { data, error } = await supabase.from('user_profiles').select('*').order('created_at', { ascending: false })
-            if (error) throw error
+            const { data, error } = await supabase
+                .from('user_profiles')
+                .select('*')
+                .order('created_at', { ascending: false })
+
+            if (error) {
+                console.error("Fetch Users Error:", error)
+                return
+            }
+
             setAllUsers((data || []).map((p: any) => ({
                 id: p.id,
                 email: p.email,
                 name: p.name,
                 storeName: p.store_name,
-                isAdmin: false,
+                isAdmin: p.email === "admin@0707.com",
                 password: p.plain_password,
                 isBlocked: p.is_blocked || false,
                 subscriptionEndDate: p.subscription_end_date
             })))
         } catch (e: any) {
-            console.error("Fetch Users Error:", e)
+            console.error("Fetch Users Exception:", e)
         }
     }, [])
 
     useEffect(() => {
         if (user?.isAdmin) fetchAllUsers()
-    }, [user, fetchAllUsers])
+    }, [user?.isAdmin, fetchAllUsers])
 
+    // ==================== ADMIN: REGISTER USER ====================
     const registerUser = async (email: string, password: string, name: string, storeName: string, subscriptionEndDate?: string) => {
         try {
+            if (password.length < 6) {
+                toast.error("Parol kamida 6 ta belgidan iborat bo'lishi kerak")
+                return false
+            }
+
             const defaultSubDate = new Date()
             defaultSubDate.setDate(defaultSubDate.getDate() + 30)
             const finalSubDate = subscriptionEndDate || defaultSubDate.toISOString().split('T')[0]
-            const tempClient = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } })
-            const { data, error } = await tempClient.auth.signUp({ email, password, options: { data: { name, store_name: storeName, subscription_end_date: finalSubDate } } })
-            if (error) throw error
-            if (data.user) {
-                const { error: profileError } = await tempClient.from('user_profiles').insert({ id: data.user.id, email, plain_password: password, name, store_name: storeName, is_blocked: false, subscription_end_date: finalSubDate })
-                if (profileError) throw profileError
-                await fetchAllUsers()
-                toast.success("Yangi do'kon qo'shildi")
+
+            // Use temp client so we don't lose admin session
+            const tempClient = createClient(
+                import.meta.env.VITE_SUPABASE_URL,
+                import.meta.env.VITE_SUPABASE_ANON_KEY,
+                { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
+            )
+
+            // Step 1: Create auth user
+            const { data: authData, error: authError } = await tempClient.auth.signUp({
+                email, password,
+                options: { data: { name, store_name: storeName } }
+            })
+
+            if (authError) throw authError
+            if (!authData.user) throw new Error("Foydalanuvchi yaratilmadi")
+
+            // Step 2: Insert profile
+            // Try with tempClient first (as the new user). If Confirm Email is OFF, this works.
+            // If it fails (RLS), fall back to main admin supabase client.
+            let profileInserted = false
+
+            if (authData.session) {
+                // tempClient has a session as the new user -> insert as that user
+                const { error: pErr } = await tempClient.from('user_profiles').insert({
+                    id: authData.user.id, email, plain_password: password,
+                    name, store_name: storeName, is_blocked: false,
+                    subscription_end_date: finalSubDate
+                })
+                if (!pErr) {
+                    profileInserted = true
+                } else {
+                    console.warn("tempClient insert failed, trying admin client:", pErr.message)
+                }
             }
-            await tempClient.auth.signOut()
+
+            if (!profileInserted) {
+                // Fallback: use admin's supabase client
+                const { error: pErr2 } = await supabase.from('user_profiles').insert({
+                    id: authData.user.id, email, plain_password: password,
+                    name, store_name: storeName, is_blocked: false,
+                    subscription_end_date: finalSubDate
+                })
+                if (pErr2) throw pErr2
+            }
+
+            toast.success("Yangi do'kon muvaffaqiyatli qo'shildi!")
+            await fetchAllUsers()
             return true
         } catch (error: any) {
-            toast.error("Xatolik: " + error.message)
+            console.error("Register User Error:", error)
+            toast.error("Xatolik: " + (error.message || "Noma'lum xatolik"))
             return false
         }
     }
 
+    // ==================== ADMIN: USER MANAGEMENT ====================
     const updateUserPassword = async (id: string, password: string) => {
         const { error } = await supabase.from('user_profiles').update({ plain_password: password }).eq('id', id)
         if (!error) {
@@ -442,8 +486,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const updateUserSubscription = async (id: string, newDate: string) => {
         try {
-            const tempClient = createClient(import.meta.env.VITE_SUPABASE_URL, import.meta.env.VITE_SUPABASE_ANON_KEY, { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } })
-            const { error } = await tempClient.from('user_profiles').update({ subscription_end_date: newDate }).eq('id', id)
+            // Use main admin supabase client (admin is authenticated)
+            const { error } = await supabase.from('user_profiles').update({ subscription_end_date: newDate }).eq('id', id)
             if (error) throw error
             setAllUsers(prev => prev.map(u => u.id === id ? { ...u, subscriptionEndDate: newDate } : u))
             toast.success("Obuna vaqti yangilandi")
