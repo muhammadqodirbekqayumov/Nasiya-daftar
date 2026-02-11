@@ -28,7 +28,6 @@ export function NotificationDialog() {
 
     const overdueCount = dueTransactions.filter(t => t.dueDate && t.dueDate < today).length
     const todayCount = dueTransactions.filter(t => t.dueDate === today).length
-    const upcomingCount = dueTransactions.filter(t => t.dueDate && t.dueDate > today).length
 
     const hasActiveNotifications = overdueCount + todayCount > 0
 
@@ -66,14 +65,14 @@ export function NotificationDialog() {
 
                                 return (
                                     <div key={t.id} className={`p-4 rounded-xl border transition-all ${isOverdue ? 'border-rose-200 bg-rose-50/50' :
-                                            isToday ? 'border-amber-200 bg-amber-50/50' :
-                                                'border-slate-200 bg-white'
+                                        isToday ? 'border-amber-200 bg-amber-50/50' :
+                                            'border-slate-200 bg-white'
                                         }`}>
                                         <div className="flex justify-between items-start mb-2">
                                             <h3 className="font-bold text-slate-900">{customer?.name}</h3>
                                             <span className={`text-xs font-bold px-2 py-1 rounded-full flex items-center gap-1 ${isOverdue ? 'bg-rose-100 text-rose-700' :
-                                                    isToday ? 'bg-amber-100 text-amber-700' :
-                                                        'bg-blue-100 text-blue-700'
+                                                isToday ? 'bg-amber-100 text-amber-700' :
+                                                    'bg-blue-100 text-blue-700'
                                                 }`}>
                                                 <Clock className="h-3 w-3" />
                                                 {isOverdue ? 'O\'tib ketdi' : (isToday ? 'Bugun' : 'Yaqinda')}
