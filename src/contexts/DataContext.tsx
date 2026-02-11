@@ -149,9 +149,9 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             setCustomers(mappedCustomers)
 
-        } catch (error) {
+        } catch (error: any) {
             console.error("Error fetching data:", error)
-            toast.error("Ma'lumotlarni yuklashda xatolik!")
+            toast.error("Xatolik: " + (error.message || "Internet bilan aloqa yo'q"))
         }
     }, [])
 
