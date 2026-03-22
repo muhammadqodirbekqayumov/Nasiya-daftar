@@ -415,10 +415,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
             if (error) {
                 console.error("Fetch Users Error:", error)
+                toast.error("Do'konlarni yuklashda xato: " + error.message)
                 return
             }
 
-            setAllUsers((data || []).map((p: any) => ({
+            const mapped = (data || []).map((p: any) => ({
                 id: p.id,
                 email: p.email,
                 name: p.full_name,
@@ -426,9 +427,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 isAdmin: p.is_admin || p.email === "admin@0707.com",
                 isBlocked: p.is_blocked || false,
                 subscriptionEndDate: p.subscription_date
-            })))
+            }))
+            
+            console.log("Mapped users count:", mapped.length)
+            setAllUsers(mapped)
+            
+            if (mapped.length === 0) {
+                toast.info("Bazada biron bir do'kon topilmadi (0 ta). Profilingiz admin bo'lmasligi mumkin.")
+            }
         } catch (e: any) {
             console.error("Fetch Users Exception:", e)
+            toast.error("Kutilmagan xatolik (User fetch): " + e.message)
         }
     }, [])
 

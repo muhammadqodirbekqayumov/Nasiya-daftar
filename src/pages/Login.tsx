@@ -13,6 +13,20 @@ export default function Login() {
     const { login } = useData()
     const navigate = useNavigate()
 
+    // Komponent yuklanganda qotib qolgan eski sessiyalarni tozalaydi
+    useState(() => {
+        try {
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i);
+                if (key && key.startsWith('sb-') && key.endsWith('-auth-token')) {
+                    localStorage.removeItem(key);
+                }
+            }
+        } catch (e) {
+            console.error("Storage clear error", e)
+        }
+    })
+
     const handleLogin = async (e: React.FormEvent) => {
         e.preventDefault()
         setLoading(true)
@@ -69,6 +83,17 @@ export default function Login() {
                         </div>
                         <Button type="submit" className="w-full h-11 text-base font-medium shadow-lg shadow-primary/20" disabled={loading}>
                             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Kirish"}
+                        </Button>
+                        <Button 
+                            type="button" 
+                            variant="ghost" 
+                            className="w-full text-xs text-slate-500 hover:text-rose-600"
+                            onClick={() => {
+                                localStorage.clear();
+                                window.location.reload();
+                            }}
+                        >
+                            Qotib qolsa: Keshni tozalash va Yangilash
                         </Button>
                     </form>
                 </CardContent>
