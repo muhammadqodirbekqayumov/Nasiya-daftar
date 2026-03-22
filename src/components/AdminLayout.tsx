@@ -1,5 +1,5 @@
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom"
-import { ShieldCheck, LogOut, LayoutDashboard, Settings, Menu } from "lucide-react"
+import { LogOut, LayoutDashboard, Settings, Menu } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useData } from "@/contexts/DataContext"
 import { Button } from "@/components/ui/button"
@@ -26,9 +26,11 @@ export default function AdminLayout() {
         <div className="flex flex-col h-full">
             <div className="p-6 border-b border-slate-100 dark:border-slate-800">
                 <div className="flex items-center gap-3">
-                    <div className="h-10 w-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white shadow-lg shadow-indigo-200">
-                        <ShieldCheck className="h-6 w-6" />
-                    </div>
+                    <img 
+                        src="/logo.png" 
+                        alt="Admin Logo" 
+                        className="h-10 w-10 object-contain rounded-xl shadow-sm"
+                    />
                     <div>
                         <h1 className="text-lg font-bold text-slate-900 leading-tight">Admin</h1>
                         <p className="text-xs text-slate-500 font-medium">Control Panel</p>
@@ -84,9 +86,7 @@ export default function AdminLayout() {
             {/* Mobile Header */}
             <header className="md:hidden fixed top-0 left-0 right-0 h-16 bg-white/80 backdrop-blur-md border-b border-slate-200 z-40 flex items-center justify-between px-4">
                 <div className="flex items-center gap-2">
-                    <div className="h-8 w-8 bg-indigo-600 rounded-lg flex items-center justify-center text-white">
-                        <ShieldCheck className="h-5 w-5" />
-                    </div>
+                    <img src="/logo.png" alt="Logo" className="h-8 w-8 object-contain rounded-lg" />
                     <span className="font-bold text-slate-900">Admin</span>
                 </div>
 

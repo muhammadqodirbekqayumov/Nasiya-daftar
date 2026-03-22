@@ -37,11 +37,11 @@ export default function Layout() {
             <aside className="hidden md:flex w-72 flex-col fixed inset-y-0 z-50 bg-white border-r border-slate-200">
                 <div className="p-6 border-b border-slate-100">
                     <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
-                            <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="currentColor" className="w-6 h-6">
-                                <path fillRule="evenodd" d="M7.5 6v.75H5.513c-.96 0-1.764.724-1.865 1.679l-1.263 12A1.875 1.875 0 0 0 4.25 22.5h15.5a1.875 1.875 0 0 0 1.865-2.071l-1.263-12a1.875 1.875 0 0 0-1.865-1.679H16.5V6a4.5 4.5 0 1 0-9 0ZM12 3a3 3 0 0 0-3 3v.75h6V6a3 3 0 0 0-3-3Zm-3 8.25a3 3 0 1 0 6 0v-.75a.75.75 0 0 1 1.5 0v.75a4.5 4.5 0 1 1-9 0v-.75a.75.75 0 0 1 1.5 0v.75Z" clipRule="evenodd" />
-                            </svg>
-                        </div>
+                        <img 
+                            src="/logo.png" 
+                            alt="Logo" 
+                            className="h-10 w-10 object-contain rounded-lg"
+                        />
                         <h1 className="text-xl font-bold bg-gradient-to-r from-slate-900 to-slate-700 bg-clip-text text-transparent">
                             {user?.email === "admin@nasiya.uz" ? "Admin Panel" : "Nasiya Daftar"}
                         </h1>
@@ -74,11 +74,9 @@ export default function Layout() {
             <header className="sticky top-0 z-40 flex h-14 items-center justify-between border-b bg-white/95 backdrop-blur px-4 md:hidden">
                 <div className="flex items-center gap-2">
                     {settings.profileImage ? (
-                        <img src={settings.profileImage} alt="Logo" className="h-8 w-8 rounded-lg object-cover" />
+                        <img src={settings.profileImage} alt="Store Logo" className="h-8 w-8 rounded-lg object-cover" />
                     ) : (
-                        <div className="h-8 w-8 bg-primary rounded-lg flex items-center justify-center text-white font-bold text-sm">
-                            {settings.storeName?.charAt(0).toUpperCase() || "N"}
-                        </div>
+                        <img src="/logo.png" alt="App Logo" className="h-8 w-8 rounded-lg object-contain" />
                     )}
                     <span className="font-bold text-lg text-slate-900">
                         {settings.storeName || "Nasiya Daftar"}

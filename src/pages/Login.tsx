@@ -51,9 +51,11 @@ export default function Login() {
         <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
             <Card className="w-full max-w-md shadow-xl border-slate-200">
                 <CardHeader className="text-center space-y-2">
-                    <div className="mx-auto w-12 h-12 bg-primary rounded-xl flex items-center justify-center mb-2 shadow-lg shadow-primary/20">
-                        <span className="text-2xl font-bold text-white">N</span>
-                    </div>
+                    <img 
+                        src="/logo.png" 
+                        alt="Nasiya Daftar Logo" 
+                        className="w-24 h-24 mx-auto object-contain rounded-xl shadow-sm mb-2"
+                    />
                     <CardTitle className="text-2xl font-bold text-slate-900">Tizimga Kirish</CardTitle>
                     <CardDescription>
                         Foydalanuvchi hisobingizga kiring
