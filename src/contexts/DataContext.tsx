@@ -174,11 +174,13 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // ==================== HELPER: Build User from Session ====================
     const buildUserFromSession = async (sessionUser: any): Promise<User> => {
-        const { data: profile } = await supabase
+        const { data: profile, error: pErr } = await supabase
             .from('profiles')
             .select('is_blocked, full_name, store_name, is_admin, subscription_date')
             .eq('id', sessionUser.id)
             .maybeSingle()
+        
+        if (pErr) console.error("Profile fetch error during build:", pErr)
 
         return {
             id: sessionUser.id,
@@ -196,6 +198,14 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         let isMounted = true
 
         const init = async () => {
+            // Failsafe: Agar supabase kutib qolsa, 3 soniyadan keyin majburan loadingni o'chiramiz
+            const fallbackTimer = setTimeout(() => {
+                if (isMounted) {
+                    console.log("Failsafe triggered: Loading forced to false")
+                    setLoading(false)
+                }
+            }, 3000)
+
             try {
                 const { data: { session } } = await supabase.auth.getSession()
                 if (session?.user && isMounted) {
@@ -205,10 +215,15 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                     fetchData(session.user.id)
                     initDoneRef.current = true
                 }
-            } catch (err) {
-                console.error("Init Error", err)
+            } catch (err: any) {
+                console.error("Init Error:", err)
+                toast.error("Tizimni yuklashda xatolik: " + (err.message || "Noma'lum xato"))
             } finally {
-                if (isMounted) setLoading(false)
+                clearTimeout(fallbackTimer)
+                if (isMounted) {
+                    console.log("Context loading set to false normally")
+                    setLoading(false)
+                }
             }
         }
 
@@ -248,7 +263,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             initDoneRef.current = false
             const { data, error } = await supabase.auth.signInWithPassword({ email, password })
             if (error) {
-                toast.error("Login yoki parol xato: " + error.message)
+                toast.error("Xatolik (Login): " + error.message)
                 setLoading(false)
                 return false
             }
@@ -265,7 +280,8 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setLoading(false)
             return true
         } catch (e: any) {
-            toast.error(e.message)
+            console.error("Login exception:", e)
+            toast.error("Login vaqtida kutilmagan xatolik: " + (e.message || "Noma'lum xato"))
             setLoading(false)
             return false
         }
@@ -425,30 +441,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
                 { auth: { persistSession: false, autoRefreshToken: false, detectSessionInUrl: false } }
             )
 
-            // Step 1: Create auth user
+            // Step 1: Create auth user with metadata
             const { data: authData, error: authError } = await tempClient.auth.signUp({
                 email, password,
-                options: { data: { name, store_name: storeName } }
+                options: { 
+                    data: { 
+                        name, 
+                        store_name: storeName,
+                        subscription_date: finalSubDate
+                    } 
+                }
             })
 
             if (authError) throw authError
             if (!authData.user) throw new Error("Foydalanuvchi yaratilmadi")
 
-            // Step 2: Insert profile
-            // Try with tempClient first (as the new user). If Confirm Email is OFF, this works.
-            // If it fails (RLS), fall back to main admin supabase client.
-            // tempClient has a session as the new user -> insert as that user
-            const { error: pErr } = await tempClient.from('profiles').insert({
-                id: authData.user.id, email,
-                full_name: name, store_name: storeName, is_blocked: false,
-                subscription_date: finalSubDate
-            })
+            // Step 2: The profile is created automatically by the Supabase trigger.
+            // No need for manual insert which causes RLS issues.
             
-            if (pErr) {
-                console.warn("tempClient insert failed:", pErr.message)
-                throw pErr
-            }
-
             toast.success("Yangi do'kon muvaffaqiyatli qo'shildi!")
             await fetchAllUsers()
             return true
