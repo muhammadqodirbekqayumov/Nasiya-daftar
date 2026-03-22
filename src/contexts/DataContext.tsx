@@ -261,7 +261,17 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
         try {
             setLoading(true)
             initDoneRef.current = false
-            const { data, error } = await supabase.auth.signInWithPassword({ email, password })
+            
+            // Failsafe: Agar internet yoki rate limit sababli so'rov qotib qolsa, 8 soniyada xato beramiz
+            const signInPromise = supabase.auth.signInWithPassword({ email, password })
+            const timeoutPromise = new Promise<{data: any, error: any}>((_, reject) => {
+                setTimeout(() => {
+                    reject(new Error("Serverdan javob kelmadi (Internet tezligi pasaygan yoki juda ko'p urinish bo'lgan bo'lishi mumkin). Sahifani yangilang."))
+                }, 8000)
+            })
+
+            const { data, error } = await Promise.race([signInPromise, timeoutPromise])
+            
             if (error) {
                 toast.error("Xatolik (Login): " + error.message)
                 setLoading(false)
