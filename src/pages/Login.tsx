@@ -5,15 +5,12 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { useData } from "@/contexts/DataContext"
 import { useNavigate } from "react-router-dom"
 import { Loader2 } from "lucide-react"
-import { toast } from "sonner"
-
 
 export default function Login() {
     const [email, setEmail] = useState("")
     const [password, setPassword] = useState("")
     const [loading, setLoading] = useState(false)
-    const { login, registerUser } = useData()
-    const isLocal = window.location.hostname === "localhost"
+    const { login } = useData()
     const navigate = useNavigate()
 
     const handleLogin = async (e: React.FormEvent) => {
@@ -35,19 +32,6 @@ export default function Login() {
             setLoading(false)
         }
     }
-
-    const setupAdmin = async () => {
-        setLoading(true)
-        // Adminni yaratishga urinib ko'ramiz
-        const success = await registerUser("admin@0707.com", "123", "Super Admin", "Nasiya Daftar Admin")
-        if (success) {
-            setEmail("admin@0707.com")
-            setPassword("123")
-            toast.success("Admin yaratildi! Endi 'Kirish' tugmasini bosing.")
-        }
-        setLoading(false)
-    }
-
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-slate-50 p-4">
@@ -86,23 +70,7 @@ export default function Login() {
                         <Button type="submit" className="w-full h-11 text-base font-medium shadow-lg shadow-primary/20" disabled={loading}>
                             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : "Kirish"}
                         </Button>
-
-                        {isLocal && (
-                            <Button
-                                type="button"
-                                variant="outline"
-                                className="w-full border-dashed text-slate-500 text-xs h-8"
-                                onClick={setupAdmin}
-                                disabled={loading}
-                            >
-                                Admin hisobini yaratish (Vaqtinchalik)
-                            </Button>
-                        )}
                     </form>
-
-
-
-
                 </CardContent>
             </Card>
         </div>

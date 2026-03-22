@@ -7,9 +7,10 @@ import { RecentTransactions } from "@/components/RecentTransactions"
 import { Users, DollarSign, Activity, TrendingUp, ArrowUpRight, ArrowDownRight, RefreshCw } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { Button } from "@/components/ui/button"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function Dashboard() {
-    const { user, customers, transactions, formatCurrency, settings, fetchData } = useData()
+    const { user, customers, transactions, formatCurrency, settings, fetchData, loading } = useData()
     const [isRefreshing, setIsRefreshing] = useState(false)
 
     const totalDebt = transactions
@@ -57,6 +58,37 @@ export default function Dashboard() {
             </Card>
         </Link>
     )
+
+    if (loading && transactions.length === 0) {
+        return (
+            <div className="flex flex-col gap-6 max-w-7xl mx-auto pb-24">
+                <div className="flex items-center justify-between">
+                    <div>
+                        <Skeleton className="h-8 w-48 mb-2" />
+                        <Skeleton className="h-4 w-32" />
+                    </div>
+                    <Skeleton className="h-8 w-8 rounded-full" />
+                </div>
+                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
+                    {[1, 2, 3, 4].map(i => (
+                        <Card key={i} className="h-full border border-slate-200">
+                            <CardContent className="p-5 flex items-start justify-between">
+                                <div className="flex flex-col gap-2 w-full">
+                                    <Skeleton className="h-4 w-24" />
+                                    <Skeleton className="h-8 w-32" />
+                                </div>
+                                <Skeleton className="h-12 w-12 rounded-xl" />
+                            </CardContent>
+                        </Card>
+                    ))}
+                </div>
+                <div className="grid gap-6 md:grid-cols-2">
+                    <Skeleton className="h-[300px] w-full rounded-xl" />
+                    <Skeleton className="h-[300px] w-full rounded-xl" />
+                </div>
+            </div>
+        )
+    }
 
     return (
         <div className="flex flex-col gap-6 max-w-7xl mx-auto pb-24">

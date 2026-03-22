@@ -7,9 +7,10 @@ import { Button } from "@/components/ui/button"
 import { Search, Phone, User } from "lucide-react"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { cn } from "@/lib/utils"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function Customers() {
-    const { customers, formatCurrency } = useData()
+    const { customers, formatCurrency, loading } = useData()
     const [search, setSearch] = useState("")
     const navigate = useNavigate()
 
@@ -41,7 +42,23 @@ export default function Customers() {
 
             {/* Smart List */}
             <div className="grid gap-2 sm:gap-3">
-                {filteredCustomers.map((customer) => {
+                {loading ? (
+                    Array(5).fill(0).map((_, i) => (
+                        <div key={i} className="p-3 sm:p-4 flex items-center justify-between bg-white rounded-xl shadow-sm border border-slate-100">
+                            <div className="flex items-center gap-3 sm:gap-4 w-full">
+                                <Skeleton className="h-10 w-10 sm:h-12 sm:w-12 rounded-full" />
+                                <div className="flex flex-col gap-2 w-full max-w-[200px]">
+                                    <Skeleton className="h-4 w-full" />
+                                    <Skeleton className="h-3 w-24" />
+                                </div>
+                            </div>
+                            <div className="flex flex-col gap-2 items-end mt-1">
+                                <Skeleton className="h-4 w-16" />
+                                <Skeleton className="h-3 w-10" />
+                            </div>
+                        </div>
+                    ))
+                ) : filteredCustomers.map((customer) => {
                     const balance = customer.totalDebt
                     const isDebt = balance > 0
                     const isCredit = balance < 0
@@ -80,7 +97,7 @@ export default function Customers() {
                         </div>
                     )
                 })}
-                {filteredCustomers.length === 0 && (
+                {(!loading && filteredCustomers.length === 0) && (
                     <div className="text-center py-10 text-slate-500">
                         <User className="h-12 w-12 mx-auto text-slate-300 mb-3" />
                         <p>Mijoz topilmadi</p>

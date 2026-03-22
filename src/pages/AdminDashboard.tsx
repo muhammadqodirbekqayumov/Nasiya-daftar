@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 
 export default function AdminDashboard() {
-    const { user, allUsers, registerUser, updateUserPassword, toggleUserBlock, updateUserLogin, updateUserSubscription } = useData()
+    const { user, allUsers, registerUser, toggleUserBlock, updateUserLogin, updateUserSubscription } = useData()
     const [isAddOpen, setIsAddOpen] = useState(false)
 
     // Subscription Edit State
@@ -264,7 +264,6 @@ export default function AdminDashboard() {
                                             <div className="flex flex-wrap items-center gap-2">
                                                 <KeyRound className="h-3 w-3 shrink-0" />
                                                 <span className="font-mono bg-slate-100 px-1 rounded text-xs truncate max-w-[150px]">{shop.email}</span>
-                                                <span className="text-xs ml-1 whitespace-nowrap text-slate-400">(Parol: {shop.password})</span>
                                             </div>
                                         </div>
                                         <div className="flex items-center gap-2 mt-1">
@@ -323,33 +322,7 @@ export default function AdminDashboard() {
                                         </DialogContent>
                                     </Dialog>
 
-                                    <Dialog>
-                                        <DialogTrigger asChild>
-                                            <Button size="sm" variant="outline" className="flex-1 md:flex-none whitespace-nowrap">
-                                                <KeyRound className="h-3 w-3 mr-2" />
-                                                Parol
-                                            </Button>
-                                        </DialogTrigger>
-                                        <DialogContent>
-                                            <DialogHeader>
-                                                <DialogTitle>Parolni Yangilash</DialogTitle>
-                                                <DialogDescription>{shop.storeName} uchun yangi parol o'rnating</DialogDescription>
-                                            </DialogHeader>
-                                            <div className="py-4">
-                                                <Label>Yangi Parol</Label>
-                                                <Input id={`pass-${shop.id}`} placeholder="Yangi parol..." />
-                                            </div>
-                                            <DialogFooter>
-                                                <Button onClick={() => {
-                                                    const input = document.getElementById(`pass-${shop.id}`) as HTMLInputElement
-                                                    if (input && input.value) {
-                                                        updateUserPassword(shop.id, input.value)
-                                                        toast.success("Parol yangilandi!")
-                                                    }
-                                                }}>Saqlash</Button>
-                                            </DialogFooter>
-                                        </DialogContent>
-                                    </Dialog>
+
 
                                     <Button
                                         size="sm"

@@ -62,7 +62,6 @@ interface DataContextType {
     deleteTransaction: (id: string) => Promise<void>
     updateSettings: (settings: Partial<AppSettings>) => void
     importData: (jsonData: string) => boolean
-    updateUserPassword: (id: string, password: string) => Promise<void>
     updateUserSubscription: (id: string, newDate: string) => Promise<void>
     toggleUserBlock: (id: string) => Promise<void>
     updateUserLogin: (id: string, email: string) => Promise<void>
@@ -176,18 +175,19 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // ==================== HELPER: Build User from Session ====================
     const buildUserFromSession = async (sessionUser: any): Promise<User> => {
         const { data: profile } = await supabase
-            .from('user_profiles')
-            .select('is_blocked, name, store_name')
+            .from('profiles')
+            .select('is_blocked, full_name, store_name, is_admin, subscription_date')
             .eq('id', sessionUser.id)
             .maybeSingle()
 
         return {
             id: sessionUser.id,
             email: sessionUser.email || "",
-            name: profile?.name || sessionUser.user_metadata?.name || "Foydalanuvchi",
+            name: profile?.full_name || sessionUser.user_metadata?.name || "Foydalanuvchi",
             storeName: profile?.store_name || sessionUser.user_metadata?.store_name || "Do'kon",
-            isAdmin: sessionUser.email === "admin@0707.com",
-            isBlocked: profile?.is_blocked || false
+            isAdmin: profile?.is_admin || sessionUser.email === "admin@0707.com",
+            isBlocked: profile?.is_blocked || false,
+            subscriptionEndDate: profile?.subscription_date
         }
     }
 
@@ -326,12 +326,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             const uid = userIdRef.current
             if (!uid) { toast.error("Siz tizimga kirmagansiz!"); return }
 
-            let finalNote = description
-            if (dueDate) finalNote = `${description} | Muddat: ${dueDate}`
+            const finalNote = dueDate ? `${description} | Muddat: ${dueDate}` : description
 
             const { data, error } = await supabase
                 .from('transactions')
-                .insert([{ customer_id: customerId, amount, type, date, description: finalNote, note: finalNote, user_id: uid }])
+                .insert([{ customer_id: customerId, amount, type, date, note: finalNote, user_id: uid }])
                 .select()
                 .maybeSingle()
 
@@ -380,7 +379,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const fetchAllUsers = useCallback(async () => {
         try {
             const { data, error } = await supabase
-                .from('user_profiles')
+                .from('profiles')
                 .select('*')
                 .order('created_at', { ascending: false })
 
@@ -392,12 +391,11 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             setAllUsers((data || []).map((p: any) => ({
                 id: p.id,
                 email: p.email,
-                name: p.name,
+                name: p.full_name,
                 storeName: p.store_name,
-                isAdmin: p.email === "admin@0707.com",
-                password: p.plain_password,
+                isAdmin: p.is_admin || p.email === "admin@0707.com",
                 isBlocked: p.is_blocked || false,
-                subscriptionEndDate: p.subscription_end_date
+                subscriptionEndDate: p.subscription_date
             })))
         } catch (e: any) {
             console.error("Fetch Users Exception:", e)
@@ -439,30 +437,16 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             // Step 2: Insert profile
             // Try with tempClient first (as the new user). If Confirm Email is OFF, this works.
             // If it fails (RLS), fall back to main admin supabase client.
-            let profileInserted = false
-
-            if (authData.session) {
-                // tempClient has a session as the new user -> insert as that user
-                const { error: pErr } = await tempClient.from('user_profiles').insert({
-                    id: authData.user.id, email, plain_password: password,
-                    name, store_name: storeName, is_blocked: false,
-                    subscription_end_date: finalSubDate
-                })
-                if (!pErr) {
-                    profileInserted = true
-                } else {
-                    console.warn("tempClient insert failed, trying admin client:", pErr.message)
-                }
-            }
-
-            if (!profileInserted) {
-                // Fallback: use admin's supabase client
-                const { error: pErr2 } = await supabase.from('user_profiles').insert({
-                    id: authData.user.id, email, plain_password: password,
-                    name, store_name: storeName, is_blocked: false,
-                    subscription_end_date: finalSubDate
-                })
-                if (pErr2) throw pErr2
+            // tempClient has a session as the new user -> insert as that user
+            const { error: pErr } = await tempClient.from('profiles').insert({
+                id: authData.user.id, email,
+                full_name: name, store_name: storeName, is_blocked: false,
+                subscription_date: finalSubDate
+            })
+            
+            if (pErr) {
+                console.warn("tempClient insert failed:", pErr.message)
+                throw pErr
             }
 
             toast.success("Yangi do'kon muvaffaqiyatli qo'shildi!")
@@ -476,35 +460,31 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     // ==================== ADMIN: USER MANAGEMENT ====================
-    const updateUserPassword = async (id: string, password: string) => {
-        const { error } = await supabase.from('user_profiles').update({ plain_password: password }).eq('id', id)
-        if (!error) {
-            setAllUsers(prev => prev.map(u => u.id === id ? { ...u, password } : u))
-            toast.success("Parol yangilandi")
-        } else toast.error("Xatolik: " + error.message)
-    }
+    // Removed updateUserPassword as plain text passwords are not stored.
 
     const updateUserSubscription = async (id: string, newDate: string) => {
         try {
-            // Use main admin supabase client (admin is authenticated)
-            const { error } = await supabase.from('user_profiles').update({ subscription_end_date: newDate }).eq('id', id)
+            const { error } = await supabase.from('profiles').update({ subscription_date: newDate }).eq('id', id)
             if (error) throw error
             setAllUsers(prev => prev.map(u => u.id === id ? { ...u, subscriptionEndDate: newDate } : u))
-            toast.success("Obuna vaqti yangilandi")
+            toast.success("Obuna vaqti yangilandi!")
         } catch (error: any) {
             toast.error("Xatolik: " + error.message)
         }
     }
 
     const toggleUserBlock = async (id: string) => {
-        const u = allUsers.find(u => u.id === id)
-        if (!u) return
-        const newValue = !u.isBlocked
-        const { error } = await supabase.from('user_profiles').update({ is_blocked: newValue }).eq('id', id)
-        if (!error) {
-            setAllUsers(prev => prev.map(user => user.id === id ? { ...user, isBlocked: newValue } : user))
-            toast.success(newValue ? "Bloklandi" : "Faollashtirildi")
-        } else toast.error("Xatolik: " + error.message)
+        try {
+            const user = allUsers.find(u => u.id === id)
+            if (!user) return
+            const newStatus = !user.isBlocked
+            const { error } = await supabase.from('profiles').update({ is_blocked: newStatus }).eq('id', id)
+            if (error) throw error
+            setAllUsers(prev => prev.map(u => u.id === id ? { ...u, isBlocked: newStatus } : u))
+            toast.success(newStatus ? "Foydalanuvchi bloklandi" : "Foydalanuvchi blokdan chiqarildi")
+        } catch (error: any) {
+            toast.error("Xatolik: " + error.message)
+        }
     }
 
     const updateUserLogin = async (id: string, email: string) => {
@@ -525,7 +505,7 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
             user, customers, transactions, loading, settings, allUsers,
             login, logout, registerUser, addCustomer, updateCustomer, deleteCustomer,
             addTransaction, deleteTransaction, updateSettings, importData,
-            updateUserPassword, updateUserSubscription, toggleUserBlock, updateUserLogin,
+            updateUserSubscription, toggleUserBlock, updateUserLogin,
             formatCurrency, fetchData
         }}>
             {children}

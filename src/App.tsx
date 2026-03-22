@@ -30,7 +30,9 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     return <Navigate to="/login" state={{ from: location }} replace />
   }
 
-  if (user.isBlocked && user.email !== "admin@nasiya.uz") {
+  const isSubscriptionExpired = user.subscriptionEndDate && new Date(user.subscriptionEndDate) < new Date(new Date().setHours(0, 0, 0, 0))
+
+  if ((user.isBlocked || isSubscriptionExpired) && user.email !== "admin@0707.com" && !user.isAdmin) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-slate-50 p-6 text-center">
         <div className="max-w-md w-full bg-white p-8 rounded-2xl shadow-xl space-y-6">
@@ -40,8 +42,10 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
           <div>
             <h1 className="text-2xl font-bold text-slate-900">Hisobingiz vaqtincha bloklandi</h1>
             <p className="text-slate-500 mt-2">
-              To'lov muddati tugaganligi sababli tizimga kirish cheklandi.
-              Faollashtirish uchun admin bilan bog'laning.
+              {isSubscriptionExpired 
+                ? "Dasturdan foydalanish muddati tugaganligi sababli tizimga kirish cheklandi." 
+                : "Hisobingiz administrator tomonidan vaqtincha bloklandi."}
+              <br/> Faollashtirish uchun admin bilan bog'laning.
             </p>
           </div>
 
