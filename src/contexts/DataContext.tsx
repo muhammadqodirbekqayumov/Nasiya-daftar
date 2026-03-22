@@ -259,20 +259,24 @@ export const DataProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // ==================== LOGIN / LOGOUT ====================
     const login = async (email: string, password: string) => {
         try {
+            console.log("Login attempt for:", email)
+            console.log("Env check:", import.meta.env.VITE_SUPABASE_URL ? "URL mavjud" : "XATO: .env yuklanmagan")
+            
             setLoading(true)
             initDoneRef.current = false
             
-            // Failsafe: Agar internet yoki rate limit sababli so'rov qotib qolsa, 8 soniyada xato beramiz
+            // Failsafe: Timioutni 15 soniyaga oshirdik
             const signInPromise = supabase.auth.signInWithPassword({ email, password })
             const timeoutPromise = new Promise<{data: any, error: any}>((_, reject) => {
                 setTimeout(() => {
-                    reject(new Error("Serverdan javob kelmadi (Internet tezligi pasaygan yoki juda ko'p urinish bo'lgan bo'lishi mumkin). Sahifani yangilang."))
-                }, 8000)
+                    reject(new Error("Supabase dan javob kelishi juda cho'zilib ketdi (15 soniya). Internet yoki Rate Limit muammosi."))
+                }, 15000)
             })
 
             const { data, error } = await Promise.race([signInPromise, timeoutPromise])
             
             if (error) {
+                console.error("Login Error:", error)
                 toast.error("Xatolik (Login): " + error.message)
                 setLoading(false)
                 return false
